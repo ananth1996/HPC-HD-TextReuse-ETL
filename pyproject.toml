@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "etl-textreuse"
+version = "0.1.0"
+description = ""
+authors = ["Ananth Mahadevan <ananth.mahadevan@helsinki.fi>"]
+readme = "README.md"
+packages = [{include = "etl_textreuse"}]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+boto3 = "^1.26.112"
+smart-open = {git = "https://github.com/HPC-HD/smart_open.git", rev = "s3_ignore_seeks_to_current_position"}
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
