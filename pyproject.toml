@@ -10,6 +10,9 @@ packages = [{include = "etl_textreuse"}]
 python = "^3.9"
 boto3 = "^1.26.112"
 smart-open = {git = "https://github.com/HPC-HD/smart_open.git", rev = "s3_ignore_seeks_to_current_position"}
+findspark = "^2.0.1"
+pyspark = "^3.3.2"
+toml = "^0.10.2"
 
 
 [build-system]
