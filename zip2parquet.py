@@ -10,6 +10,7 @@ from time import perf_counter as time
 import smart_open
 import logging
 import argparse
+import random
 project_root = Path(__file__).parent.resolve()
 #%%
 
@@ -42,6 +43,8 @@ def get_parser():
         help="Be verbose",
         action="store_const", dest="loglevel", const=logging.INFO,
     )
+    parser.add_argument("--shuffle",action="store_true")
+    parser.add_argument("--seed",type=int)
 
     return parser
 
@@ -75,7 +78,11 @@ if __name__ == "__main__":
         with zipfile.ZipFile(fileobj) as zf:
             # go over all files in ZIP archive
             logger.debug("Looping over zip files")
-            for i,fileinfo in enumerate(zf.infolist()):
+            infolist = zf.infolist()
+            if args.shuffle:
+                random.seed(args.seed)
+                random.shuffle(infolist)
+            for i,fileinfo in enumerate(infolist):
                 # open zip file
                 with zf.open(fileinfo) as fp:
                     # open tar.gz file
