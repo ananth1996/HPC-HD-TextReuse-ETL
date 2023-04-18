@@ -13,6 +13,8 @@ smart-open = {git = "https://github.com/HPC-HD/smart_open.git", rev = "s3_ignore
 findspark = "^2.0.1"
 pyspark = "^3.3.2"
 toml = "^0.10.2"
+jupyter = "^1.0.0"
+ijson = "^3.2.0.post0"
 
 
 [build-system]
