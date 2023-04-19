@@ -15,7 +15,7 @@ from pyspark.sql import SparkSession
 import os
 import ijson 
 from functools import partial
-project_root = Path(__file__).resolve()
+project_root = Path(__file__).parent.resolve()
 #%% 
 
 def get_parser():
@@ -80,7 +80,7 @@ def get_jsons(fileinfo,fname:str,cred:dict):
 if __name__ == "__main__":
         
     # Basic Set up
-    args = get_parser().parse_args(["txtreuse.zip","-v"])
+    args = get_parser().parse_args()
     logging.basicConfig(level=args.loglevel)
     logger =  logging.getLogger(__name__)
     # set the interpreter to the poerty env
