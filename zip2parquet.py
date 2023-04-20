@@ -1,16 +1,12 @@
 #%%
 import boto3 
-import io 
 import zipfile
 import toml
 from pathlib import Path
 import tarfile
-import json
-from time import perf_counter as time
 import smart_open
 import logging
 import argparse
-import random
 from pyspark.sql import SparkSession
 import os
 import ijson 
@@ -37,28 +33,22 @@ def get_parser():
     )
     return parser
 #%%
-def get_jsons(fileinfo,fname:str,cred:dict):
-    if "_fileobj" not in globals():
-        logger.info("Creating global variables")
-        global _fileobj
-        global _session
-        global _s3
-        global _transport_params
-        global _zf
-        # _fileobj = 1
-        _session = boto3.session.Session()
-        _s3 = session.client(
-            service_name='s3',
-            **cred["default"]
-        )
-        # _fileobj =
-        _fileobj = smart_open.open(fname,"rb",compression='disable',transport_params=dict(client=_s3))
-        _zf = zipfile.ZipFile(_fileobj)
-    with _zf.open(fileinfo) as fp:
+def process_file(fileinfo:zipfile.ZipInfo,handler:zipfile.ZipFile):
+    """Reads a single file and returns JSON objects in stream
+
+    Args:
+        fileinfo (zipfile.ZipInfo): The file inside the zip to process
+        handler (zipfile.ZipFile): The handler for the zipfile object
+
+    Yields:
+        dict: JSON objects
+    """
+
+    with handler.open(fileinfo) as fp:
         try:
             # open tar.gz file
             logger.info(f"Opening tar file {fp}")
-            with tarfile.open(fileobj=fp,debug=3,mode="r|*") as tf:
+            with tarfile.open(fileobj=fp,debug=3,mode="r|gz") as tf:
                 # go through members in tarfile
                 logger.debug("Looping over members")
                 try:
@@ -66,14 +56,49 @@ def get_jsons(fileinfo,fname:str,cred:dict):
                         logger.debug(f"{member=}")
                         logger.debug(f"{tf.fileobj=}, {member.offset_data=},{member.size=}, {member.sparse=}")
                         # extract json from tarfile 
+                        counter = 0
                         with tf.extractfile(member) as json_fp:
                             # read JSON objects in streams
                             for item in ijson.items(json_fp,prefix="item"):
+                                counter+=1 
+                                logger.debug(f"Returning item: {counter}")
                                 yield item
                 except Exception:
-                    logger.exception(f"Cannot process TarFile: {fp.name} members")
+                    logger.exception(f"Cannot process TarFile: {fp.name}")
         except Exception:
             logger.exception(f"Cannot Open ZipFile object: {fileinfo}")
+    
+
+def process_partition(iterator,fname:str,cred:dict,loglevel:int):
+    """Processes a chunk of files inside the zip.
+    Initializes a s3 stream for a spark partition to read sequentially.
+
+    Args:
+        iterator : spark iterator for a partition
+        fname (str): The name of the s3 file to open
+        cred (dict): The credentials
+        loglevel (int): The logging level
+
+    Yields:
+        dict: JSON objects from the files
+    """
+    logging.basicConfig(level=loglevel)
+    logging.info("In partition")
+    # open a s3 session
+    session = boto3.session.Session()
+    s3 = session.client(
+        service_name='s3',
+        **cred["default"]
+    )
+    transport_params=dict(client=s3)
+    # open the S3 stream
+    with smart_open.open(fname,"rb",compression='disable',transport_params=transport_params) as fileobj:
+        # open it as a ZipFile
+        with zipfile.ZipFile(fileobj) as zf:
+            for fileinfo in iterator:
+                logger.info(f"Processing file {fileinfo}")
+                for json_object in process_file(fileinfo,zf):
+                    yield json_object
 
 #%%
 
@@ -84,7 +109,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=args.loglevel)
     logger =  logging.getLogger(__name__)
     # set the interpreter to the poerty env
-    os.environ['PYSPARK_PYTHON'] = "/home/jovyan/work/etl_textreuse/.venv/bin/python"
+    os.environ['PYSPARK_PYTHON'] = str(project_root/".venv/bin/python")
     spark = (SparkSession
             .builder
             .appName("ETL")
@@ -123,9 +148,14 @@ if __name__ == "__main__":
         # open file as ZIP
         with zipfile.ZipFile(fileobj) as zf:
             infolist = zf.infolist()
-    # get a partial function 
-    func = partial(get_jsons,fname=fname,cred=cred)
-    rdd = sc.parallelize(infolist,args.num_partitions)
-    jsons = rdd.flatMap(func)
-    df = jsons.toDF()
-    df.write.mode("overwrite").parquet(output_fname)
+    
+    # get a partial function
+    func1 = partial(process_partition,fname=fname,cred=cred,loglevel=args.loglevel)
+    rdd1 = sc.parallelize(infolist,args.num_partitions)
+    # get the JSONs from the RDD
+    jsons1 = rdd1.mapPartitions(func1)
+    # convert into a dataframe
+    df1 = jsons1.toDF()
+    # write to the output file
+    df1.write.mode("overwrite").parquet(output_fname)
+    #%%
