@@ -11,6 +11,7 @@ from pyspark.sql import SparkSession
 import os
 import ijson 
 from functools import partial
+from pyspark.sql.types import *
 project_root = Path(__file__).parent.resolve()
 #%% 
 
@@ -59,7 +60,7 @@ def process_file(fileinfo:zipfile.ZipInfo,handler:zipfile.ZipFile):
                         counter = 0
                         with tf.extractfile(member) as json_fp:
                             # read JSON objects in streams
-                            for item in ijson.items(json_fp,prefix="item"):
+                            for item in ijson.items(json_fp,prefix="item",use_float=True):
                                 counter+=1 
                                 logger.debug(f"Returning item: {counter}")
                                 yield item
@@ -105,7 +106,7 @@ def process_partition(iterator,fname:str,cred:dict,loglevel:int):
 if __name__ == "__main__":
         
     # Basic Set up
-    args = get_parser().parse_args()
+    args = get_parser().parse_args(["txtreuse.zip"])
     logging.basicConfig(level=args.loglevel)
     logger =  logging.getLogger(__name__)
     # set the interpreter to the poerty env
@@ -142,7 +143,7 @@ if __name__ == "__main__":
         fname = f"s3://{args.s3_bucket}/{args.fname}"
         # filename inside the bucket
         output_fname = f"s3a://{args.s3_bucket}/{args.fname.split('.')[0]}.parquet"
-
+    #%%
     # read the files in the zip file
     with smart_open.open(fname,"rb",compression='disable',transport_params=transport_params) as fileobj:
         # open file as ZIP
@@ -154,8 +155,24 @@ if __name__ == "__main__":
     rdd1 = sc.parallelize(infolist,args.num_partitions)
     # get the JSONs from the RDD
     jsons1 = rdd1.mapPartitions(func1)
+    # create a schema for the dataframe
+    schema = StructType(
+        [
+            StructField("align_length", IntegerType(), True),
+            StructField("positives_percent", FloatType(), True),
+            StructField("text1_id", StringType(), True),
+            StructField("text1_text", StringType(), True),
+            StructField("text1_text_end", IntegerType(), True),
+            StructField("text1_text_start", IntegerType(), True),
+            StructField("text2_id", StringType(), True),
+            StructField("text2_text", StringType(), True),
+            StructField("text2_text_end", IntegerType(), True),
+            StructField("text2_text_start", IntegerType(), True),
+        ]
+    )
     # convert into a dataframe
-    df1 = jsons1.toDF()
+    df1 = spark.createDataFrame(jsons1,schema=schema)
+    #%%
     # write to the output file
     df1.write.mode("overwrite").parquet(output_fname)
     #%%
