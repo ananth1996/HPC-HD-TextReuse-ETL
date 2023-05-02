@@ -175,13 +175,13 @@ textreuse_ids = materialise_row_numbers(
             SUBSTRING_INDEX(text2_id,".",-1) AS struct_name 
         FROM textreuses_raw
         """),
-    col_name="t_id",
+    col_name="textreuse_source_id",
     bucket = args.output_s3_bucket)
 #%%
 idmap = materialise_s3_if_not_exists(
     fname="idmap",
     df = spark.sql("""
-    SELECT t_id,ecco_id,eebo_tcp_id FROM textreuse_ids ti 
+    SELECT textreuse_source_id,ecco_id,eebo_tcp_id FROM textreuse_ids ti 
     LEFT JOIN ecco_core ec ON ti.doc_name = ec.ecco_id
     LEFT JOIN eebo_tcp_core etc ON ti.doc_name = etc.eebo_tcp_id"""),
     bucket=args.output_s3_bucket)
@@ -190,18 +190,18 @@ textreuses = materialise_row_numbers(
     fname="textreuses",
     df=spark.sql("""
         SELECT 
-            ti1.t_id AS t1_id,
-            text1_text_start AS t1_start,
-            text1_text_end AS t1_end,
-            ti2.t_id AS t2_id,
-            text2_text_start AS t2_start,
-            text2_text_end AS t2_end,
+            ti1.textreuse_source_id AS trs1_id,
+            text1_text_start AS trs1_start,
+            text1_text_end AS trs1_end,
+            ti2.textreuse_source_id AS trs2_id,
+            text2_text_start AS trs2_start,
+            text2_text_end AS trs2_end,
             align_length,
             positives_percent
         FROM textreuses_raw t
         LEFT JOIN textreuse_ids ti1 ON t.text1_id = ti1.text_name
         LEFT JOIN textreuse_ids ti2 ON t.text2_id = ti2.text_name"""),
-    col_name="tr_id",
+    col_name="textreuse_id",
     bucket=args.output_s3_bucket
 )
 #%%
