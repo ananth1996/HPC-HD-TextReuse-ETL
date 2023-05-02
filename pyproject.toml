@@ -8,7 +8,7 @@ packages = [{include = "etl_textreuse"}]
 
 [tool.poetry.dependencies]
 python = "^3.9"
-boto3 = "^1.26.112"
+boto3 = "^1.26.124"
 smart-open = {git = "https://github.com/HPC-HD/smart_open.git", rev = "s3_ignore_seeks_to_current_position"}
 findspark = "^2.0.1"
 pyspark = "^3.3.2"
@@ -16,6 +16,7 @@ toml = "^0.10.2"
 jupyter = "^1.0.0"
 ijson = "^3.2.0.post0"
 autopep8 = "^2.0.2"
+pandas = {extras = ["compression", "computation", "feather", "hdf5", "mysql", "parquet", "performance", "plot"], version = "^2.0.1"}
 
 
 [build-system]
