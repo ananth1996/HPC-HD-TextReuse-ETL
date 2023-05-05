@@ -169,7 +169,7 @@ func worker(chunkNumbers <-chan int, changed chan<- *Ret, wg *sync.WaitGroup) {
 
 var p *mpb.Progress
 var clusters []int64
-var edgeOffsets []int64
+var edgeOffsets []int32
 var edgeVals []int64
 var orderChunks [][]int64
 var active []bool
