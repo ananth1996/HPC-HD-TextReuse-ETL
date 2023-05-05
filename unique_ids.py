@@ -54,20 +54,21 @@ def dfZipWithIndex (df, offset=1, col_name="rowId"):
 
 def materialise_row_numbers(fname:str,df:DataFrame,col_name:str,bucket:str,table_name:Optional[str]=None):
     # materialise the dataframe if it was not materialised
-    df = materialise_s3_if_not_exists(fname,df,bucket=bucket,table_name=table_name)
+    _df = materialise_s3_if_not_exists(fname+"_tmp",df,bucket=bucket,table_name=table_name)
 
     # check if the row_number column already exists
-    if col_name not in df.columns:
+    if col_name not in _df.columns:
         # Write dataframe with row numbers to a temporary location
-        df_tmp = materialise_s3(
-            fname=f"{fname}_tmp",
-            df=dfZipWithIndex(df,col_name=col_name),
+        _df = materialise_s3(
+            fname=fname,
+            df=dfZipWithIndex(_df,col_name=col_name),
             bucket=bucket
         )
-        # then copy to correct location
-        df = materialise_s3(fname=fname,df=df_tmp,bucket=bucket,table_name=table_name)
         # then drop temp location
-        delete_s3(f"{fname}_tmp",bucket=bucket)
+        delete_s3(fname+"_tmp",bucket=bucket)
+    else:
+        # rename tmp as correct location
+        rename_s3(fname+"_tmp",fname,bucket=bucket)
     
     return df
 #%%

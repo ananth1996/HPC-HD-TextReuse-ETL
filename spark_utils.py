@@ -30,14 +30,14 @@ spark,sc = start_spark_app(project_root=project_root)
 def get_local(fname: str, cache: bool = False,table_name: Optional[str] = None):
     if table_name is None:
         table_name = fname
-    return maybe_cache(table_name, spark.read.parquet(fname+".parquet"), cache=cache)
+    return register(table_name, spark.read.parquet(fname+".parquet"), cache=cache)
     
     
 def materialise_local(name:str, df, cache: bool = False):
     df.write.mode("overwrite").option("compression","zstd").parquet(name+".parquet")
     return get_local(name, cache)
 
-def maybe_cache(table_name: str, df, cache: bool):
+def register(table_name: str, df, cache: bool):
     if cache:
         df.createOrReplaceTempView(table_name + "_source")
         spark.sql("DROP TABLE IF EXISTS " + table_name)
@@ -62,7 +62,7 @@ def get_s3(
 ):
     if table_name is None:
         table_name = fname
-    return maybe_cache(
+    return register(
         table_name, spark.read.parquet(f"s3a://{bucket}/{fname}.parquet"), cache=cache
     )
 
@@ -78,7 +78,17 @@ def delete_s3(
     )
     if fs.exists(_path):
         fs.delete(_path,True)
-    
+
+def rename_s3(src_fname:str,dst_fname:str,bucket:str):
+    _src_path = sc._jvm.org.apache.hadoop.fs.Path(f"s3a://{bucket}/{src_fname}.parquet")
+    _dst_path = sc._jvm.org.apache.hadoop.fs.Path(f"s3a://{bucket}/{dst_fname}.parquet")
+    path_uri = sc._jvm.java.net.URI.create(f"s3a://{bucket}")
+    fs = sc._jvm.org.apache.hadoop.fs.FileSystem.get(
+        path_uri, sc._jsc.hadoopConfiguration()
+    )
+    if (fs.exists(_src_path)):
+        fs.rename(_src_path,_dst_path)
+
 def materialise_s3(
     fname: str,
     df: DataFrame,
