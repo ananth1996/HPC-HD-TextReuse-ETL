@@ -39,8 +39,8 @@ func readTable(filename string) arrow.Table {
 	return tbl
 }
 
-func chunkSlice(slice []int32, chunkCount int) [][]int32 {
-	var chunks [][]int32
+func chunkSlice(slice []int64, chunkCount int) [][]int64 {
+	var chunks [][]int64
 	chunkSize := len(slice)/chunkCount + 1
 	for i := 0; i < len(slice); i += chunkSize {
 		end := i + chunkSize
@@ -61,7 +61,7 @@ type Ret struct {
 	changed     int
 }
 
-func chineseWhispersSlice(myOrder []int32) int { //, chunkNumber int, r frand.RNG) int {
+func chineseWhispersSlice(myOrder []int64) int { //, chunkNumber int, r frand.RNG) int {
 	//r.Shuffle(len(myOrder), func(i, j int) { myOrder[i], myOrder[j] = myOrder[j], myOrder[i] })
 	/*	bar := p.AddBar(int64(len(myOrder)),
 		mpb.BarRemoveOnComplete(),
@@ -77,7 +77,7 @@ func chineseWhispersSlice(myOrder []int32) int { //, chunkNumber int, r frand.RN
 		),
 	)*/
 	changed := 0
-	//top := make([]int32, 0)
+	//top := make([]int64, 0)
 	for _, e := range myOrder {
 		if !active[e] {
 			//bar.Increment()
@@ -86,7 +86,7 @@ func chineseWhispersSlice(myOrder []int32) int { //, chunkNumber int, r frand.RN
 		active[e] = false
 		beg := edgeOffsets[e]
 		end := edgeOffsets[e+1]
-		var nc int32
+		var nc int64
 		if end == beg+1 {
 			nc = clusters[edgeVals[beg]]
 		} else if end == beg+2 {
@@ -109,7 +109,7 @@ func chineseWhispersSlice(myOrder []int32) int { //, chunkNumber int, r frand.RN
 						} */
 		} else {
 			topc := 0
-			cc := make(map[int32]int)
+			cc := make(map[int64]int)
 			for j := beg; j < end; j++ {
 				cc[clusters[edgeVals[j]]]++
 			}
@@ -168,14 +168,14 @@ func worker(chunkNumbers <-chan int, changed chan<- *Ret, wg *sync.WaitGroup) {
 }
 
 var p *mpb.Progress
-var clusters []int32
-var edgeOffsets []int32
-var edgeVals []int32
-var orderChunks [][]int32
+var clusters []int64
+var edgeOffsets []int64
+var edgeVals []int64
+var orderChunks [][]int64
 var active []bool
 
 type Cluster struct {
-	Cluster int32 `parquet:"name=cluster, type=INT32"`
+	Cluster int64 `parquet:"name=cluster, type=INT64"`
 }
 
 func writeClusters(numThreads int) {
@@ -224,15 +224,15 @@ func main() {
 	}
 	edgeLists := edgesColumn.Data().Chunk(0).(*array.List)
 	edgeOffsets = edgeLists.Offsets()
-	edgeVals = edgeLists.ListValues().(*array.Int32).Int32Values()
+	edgeVals = edgeLists.ListValues().(*array.Int64).Int64Values()
 	_, err := os.Stat("../data/clusters.parquet")
-	order := make([]int32, edgeLists.Len())
+	order := make([]int64, edgeLists.Len())
 	active = make([]bool, edgeLists.Len())
 	for i := range active {
-		order[i] = int32(i)
+		order[i] = int64(i)
 		active[i] = true
 	}
-	clusters = make([]int32, edgeLists.Len())
+	clusters = make([]int64, edgeLists.Len())
 	if os.IsNotExist(err) {
 		log.Println("No saved clusters exist, initializing as new")
 		copy(clusters, order)
@@ -241,7 +241,7 @@ func main() {
 		log.Println("Reading clusters from saved data")
 		i := 0
 		for _, chunk := range clc {
-			for _, v := range chunk.(*array.Int32).Int32Values() {
+			for _, v := range chunk.(*array.Int64).Int64Values() {
 				clusters[i] = v
 				i++
 			}
