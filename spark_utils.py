@@ -5,6 +5,8 @@ import toml
 import os
 from typing import *
 from pyspark.sql.dataframe import DataFrame
+from pyspark.sql.types import StructField, StructType, LongType
+
 
 def start_spark_app(project_root:Path,application_name:str="ETL"):
     os.environ['PYSPARK_PYTHON'] = str(project_root/".venv/bin/python")
