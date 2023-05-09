@@ -21,7 +21,7 @@ if notebook:
 else:
     project_root = Path(__file__).parent.parent.resolve()
 #%%
-
+processed_bucket = "textreuse-processed-data"
 #%%
 estc_core = get_s3("estc_core",bucket="textreuse-raw-data")
 ecco_core = get_s3("ecco_core",bucket="textreuse-raw-data")
@@ -47,10 +47,10 @@ edition_mapping = materialise_with_int_id(
     WHERE eebo_tcp_id IS NOT NULL
     """),
     col_name="edition_id",
-    id_col_name="editition_id_i",
+    id_col_name="edition_id_i",
     keep_id_mapping=True,
     id_fname="edition_ids",
-    bucket="textreuse-processed-data"
+    bucket=processed_bucket
 )
 #%%
 work_mapping = materialise_with_int_id(
@@ -69,60 +69,84 @@ work_mapping = materialise_with_int_id(
     id_col_name="work_id_i",
     keep_id_mapping=True,
     id_fname="work_ids",
-    bucket="textreuse-processed-data"
+    bucket=processed_bucket
 )
 #%%
+edition_years = materialise_s3_if_not_exists(
+    fname="edition_publication_year",
+    df=spark.sql("""
+    SELECT 
+        edition_id_i,
+        (CASE
+            WHEN publication_year IS NULL THEN -- when estc_core doesn't have data
+            (CASE 
 
+                WHEN LENGTH(eebo_tls_publication_date) = 4 THEN CAST(eebo_tls_publication_date AS INT) -- Eg: 1697
+                WHEN LENGTH(eebo_tls_publication_date) = 5 THEN CAST(SUBSTRING(eebo_tls_publication_date,-4) AS INT) -- Eg: -1697
+                WHEN LENGTH(eebo_tls_publication_date) = 9 THEN CAST(SUBSTRING(eebo_tls_publication_date,1,4) AS INT) -- Eg: 1690-1697
+                WHEN LENGTH(eebo_tls_publication_date) > 9 THEN CAST(SUBSTRING(eebo_tls_publication_date,-4) AS INT) -- Eg: April 24, 1649
+            END)
+            ELSE CAST(estc.publication_year AS INT)
+        END) AS publication_year
+    FROM eebo_core ec
+    INNER JOIN edition_mapping em ON ec.eebo_tcp_id = em.manifestation_id
+    LEFT JOIN estc_core estc ON em.edition_id = estc.estc_id
+
+    UNION
+
+    SELECT edition_id_i,
+        (CASE
+            WHEN publication_year IS NULL -- when estc_core doesn't have data
+            THEN CAST(SUBSTRING(ec.ecco_date_start,1,4) AS INT)
+            ELSE CAST(estc.publication_year AS INT)
+        END) AS publication_year
+    FROM ecco_core ec
+    INNER JOIN edition_mapping em ON ec.ecco_id = em.manifestation_id
+    LEFT JOIN estc_core estc ON em.edition_id = estc.estc_id
+    """),
+    bucket=processed_bucket
+)
 #%%
-spark.sql("""
-SELECT 
-	CONCAT(ec.estc_id,"-estc from EEBO") AS work_id,
-	MIN(
-		CASE 
-			WHEN LENGTH(eebo_tls_publication_date) = 4 THEN CAST(eebo_tls_publication_date AS INT) -- Eg: 1697
-			WHEN LENGTH(eebo_tls_publication_date) = 5 THEN CAST(SUBSTRING(eebo_tls_publication_date,-4) AS INT) -- Eg: -1697
-			WHEN LENGTH(eebo_tls_publication_date) = 9 THEN CAST(SUBSTRING(eebo_tls_publication_date,1,4) AS INT) -- Eg: 1690-1697
-			WHEN LENGTH(eebo_tls_publication_date) > 9 THEN CAST(SUBSTRING(eebo_tls_publication_date,-4) AS INT) -- Eg: April 24, 1649
-		END
-		) AS publication_year
-FROM eebo_core ec 
-LEFT JOIN estc_core eca USING(estc_id)
-WHERE eebo_tcp_id IS NOT NULL AND ec.estc_id IS NOT NULL AND eca.estc_id IS NULL
-GROUP BY estc_id 
+# spark.sql("""
+# SELECT 
+# 	CONCAT(ec.estc_id,"-estc from EEBO") AS work_id,
+# 	MIN(
+# 		CASE 
+# 			WHEN LENGTH(eebo_tls_publication_date) = 4 THEN CAST(eebo_tls_publication_date AS INT) -- Eg: 1697
+# 			WHEN LENGTH(eebo_tls_publication_date) = 5 THEN CAST(SUBSTRING(eebo_tls_publication_date,-4) AS INT) -- Eg: -1697
+# 			WHEN LENGTH(eebo_tls_publication_date) = 9 THEN CAST(SUBSTRING(eebo_tls_publication_date,1,4) AS INT) -- Eg: 1690-1697
+# 			WHEN LENGTH(eebo_tls_publication_date) > 9 THEN CAST(SUBSTRING(eebo_tls_publication_date,-4) AS INT) -- Eg: April 24, 1649
+# 		END
+# 		) AS publication_year
+# FROM eebo_core ec 
+# LEFT JOIN estc_core eca USING(estc_id)
+# WHERE eebo_tcp_id IS NOT NULL AND ec.estc_id IS NOT NULL AND eca.estc_id IS NULL
+# GROUP BY estc_id 
 
-UNION ALL 
+# UNION ALL 
 
-SELECT 
-	CONCAT(ec.estc_id,"-estc_id from ECCO") AS work_id,
-	MIN(CAST(SUBSTRING(ecco_date_start,1,4) AS INT)) AS publication_year
-FROM ecco_core ec
-LEFT JOIN estc_core eca USING(estc_id) 
-WHERE eca.estc_id IS NULL
-GROUP BY ec.estc_id 
+# SELECT 
+# 	CONCAT(ec.estc_id,"-estc_id from ECCO") AS work_id,
+# 	MIN(CAST(SUBSTRING(ecco_date_start,1,4) AS INT)) AS publication_year
+# FROM ecco_core ec
+# LEFT JOIN estc_core eca USING(estc_id) 
+# WHERE eca.estc_id IS NULL
+# GROUP BY ec.estc_id 
 
-UNION ALL 
+# UNION ALL 
 
-SELECT 
-	CONCAT(eebo_id,"-eebo_id from EEBO") AS work_id,
-	MIN(
-		CASE 
-			WHEN LENGTH(eebo_tls_publication_date) = 4 THEN CAST(eebo_tls_publication_date AS INT) -- Eg: 1697
-			WHEN LENGTH(eebo_tls_publication_date) = 5 THEN CAST(SUBSTRING(eebo_tls_publication_date,-4) AS INT) -- Eg: -1697
-			WHEN LENGTH(eebo_tls_publication_date) = 9 THEN CAST(SUBSTRING(eebo_tls_publication_date,1,4) AS INT) -- Eg: 1690-1697
-			WHEN LENGTH(eebo_tls_publication_date) > 9 THEN CAST(SUBSTRING(eebo_tls_publication_date,-4) AS INT) -- Eg: April 24, 1649
-		END
-		) AS publication_year
-FROM eebo_core 
-WHERE estc_id IS NULL AND eebo_tcp_id IS NOT NULL
-GROUP BY eebo_id
-""")
-#%%
-
-#%%
-work_ids = materialise_row_numbers(
-    fname="work_ids",
-    df = spark.sql("SELECT DISTINCT work_id FROM estc_core"),
-    col_name="work_id_i",
-    bucket="textreuse-processed-data"
-    )
+# SELECT 
+# 	CONCAT(eebo_id,"-eebo_id from EEBO") AS work_id,
+# 	MIN(
+# 		CASE 
+# 			WHEN LENGTH(eebo_tls_publication_date) = 4 THEN CAST(eebo_tls_publication_date AS INT) -- Eg: 1697
+# 			WHEN LENGTH(eebo_tls_publication_date) = 5 THEN CAST(SUBSTRING(eebo_tls_publication_date,-4) AS INT) -- Eg: -1697
+# 			WHEN LENGTH(eebo_tls_publication_date) = 9 THEN CAST(SUBSTRING(eebo_tls_publication_date,1,4) AS INT) -- Eg: 1690-1697
+# 			WHEN LENGTH(eebo_tls_publication_date) > 9 THEN CAST(SUBSTRING(eebo_tls_publication_date,-4) AS INT) -- Eg: April 24, 1649
+# 		END
+# 		) AS publication_year
+# FROM eebo_core 
+# WHERE estc_id IS NULL AND eebo_tcp_id IS NOT NULL
+# GROUP BY eebo_id
+# """)
 #%%
