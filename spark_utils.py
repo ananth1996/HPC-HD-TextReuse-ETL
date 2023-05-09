@@ -10,7 +10,7 @@ def start_spark_app(project_root:Path,application_name:str="ETL"):
     os.environ['PYSPARK_PYTHON'] = str(project_root/".venv/bin/python")
     spark = (SparkSession
             .builder
-            .appName("Unique IDs")
+            .appName("ETL")
             .getOrCreate())
     spark.sparkContext.setLogLevel("WARN")
     sc = spark.sparkContext
@@ -111,3 +111,46 @@ def materialise_s3_if_not_exists(
         return materialise_s3(fname, df, bucket, cache, table_name)
     else:
         return get_s3(fname, bucket, cache, table_name)
+    
+#%%
+# From https://stackoverflow.com/questions/30304810/dataframe-ified-zipwithindex
+def dfZipWithIndex (df, offset=1, col_name="rowId"):
+    '''
+        Enumerates dataframe rows is native order, like rdd.ZipWithIndex(), but on a dataframe
+        and preserves a schema
+
+        :param df: source dataframe
+        :param offset: adjustment to zipWithIndex()'s index
+        :param colName: name of the index column
+    '''
+
+    new_schema = StructType(
+                    [StructField(col_name,LongType(),True)]        # new added field in front
+                    + df.schema.fields                            # previous schema
+                )
+
+    zipped_rdd = df.rdd.zipWithIndex()
+    # use this for python 3+, tuple gets passed as single argument so using args and [] notation to read elements within args
+    new_rdd = zipped_rdd.map(lambda args: ([args[1] + offset] + list(args[0])))      
+    return spark.createDataFrame(new_rdd, new_schema)
+
+
+def materialise_row_numbers(fname:str,df:DataFrame,col_name:str,bucket:str,table_name:Optional[str]=None):
+    # materialise the dataframe if it was not materialised
+    _df = materialise_s3_if_not_exists(fname+"_tmp",df,bucket=bucket,table_name=table_name)
+
+    # check if the row_number column already exists
+    if col_name not in _df.columns:
+        # Write dataframe with row numbers to a temporary location
+        _df = materialise_s3(
+            fname=fname,
+            df=dfZipWithIndex(_df,col_name=col_name),
+            bucket=bucket
+        )
+        # then drop temp location
+        delete_s3(fname+"_tmp",bucket=bucket)
+    else:
+        # rename tmp as correct location
+        rename_s3(fname+"_tmp",fname,bucket=bucket)
+    
+    return df
