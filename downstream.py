@@ -27,7 +27,7 @@ estc_core = get_s3("estc_core",bucket="textreuse-raw-data")
 ecco_core = get_s3("ecco_core",bucket="textreuse-raw-data")
 eebo_core = get_s3("eebo_core",bucket="textreuse-raw-data")
 #%%
-edition_mapping = materialise_s3(
+edition_mapping = materialise_with_int_id(
     fname="edition_mapping",
     df=spark.sql("""
     SELECT DISTINCT
@@ -46,10 +46,14 @@ edition_mapping = materialise_s3(
     FROM eebo_core
     WHERE eebo_tcp_id IS NOT NULL
     """),
+    col_name="edition_id",
+    id_col_name="editition_id_i",
+    keep_id_mapping=True,
+    id_fname="edition_ids",
     bucket="textreuse-processed-data"
 )
 #%%
-work_mapping = materialise_s3(
+work_mapping = materialise_with_int_id(
     fname = "work_mapping",
     df=spark.sql("""
     SELECT DISTINCT
@@ -61,20 +65,16 @@ work_mapping = materialise_s3(
     FROM edition_mapping em
     LEFT JOIN estc_core ec ON em.edition_id = ec.estc_id
     """),
+    col_name="work_id",
+    id_col_name="work_id_i",
+    keep_id_mapping=True,
+    id_fname="work_ids",
     bucket="textreuse-processed-data"
 )
 #%%
 
 #%%
 spark.sql("""
-SELECT 
-    work_id,
-    min(publication_year) 
-FROM estc_core 
-GROUP BY work_id
-
-UNION ALL
-
 SELECT 
 	CONCAT(ec.estc_id,"-estc from EEBO") AS work_id,
 	MIN(
