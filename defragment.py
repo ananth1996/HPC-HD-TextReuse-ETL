@@ -1,3 +1,4 @@
+#%%
 from IPython import get_ipython
 if get_ipython() is not None and __name__ == "__main__":
     notebook = True
