@@ -138,8 +138,12 @@ def dfZipWithIndex (df, offset=1, col_name="rowId"):
 
 
 def materialise_row_numbers(fname:str,df:DataFrame,col_name:str,bucket:str,table_name:Optional[str]=None):
-    # materialise the dataframe if it was not materialised
-    _df = materialise_s3_if_not_exists(fname+"_tmp",df,bucket=bucket,table_name=table_name)
+    if s3_uri_exists(f"s3a://{bucket}/{fname}.parquet"):
+        # rename the file with suffix 
+        rename_s3(fname,fname+"_tmp",bucket=bucket)
+        _df = get_s3(fname+"_tmp",bucket=bucket)
+    else:
+        _df = materialise_s3(fname+"_tmp",df,bucket=bucket)
 
     # check if the row_number column already exists
     if col_name not in _df.columns:
@@ -156,3 +160,67 @@ def materialise_row_numbers(fname:str,df:DataFrame,col_name:str,bucket:str,table
         rename_s3(fname+"_tmp",fname,bucket=bucket)
     
     return df
+
+
+def materialise_with_int_id(fname:str,df:DataFrame,col_name:str,id_col_name:str,bucket:str,keep_id_mapping:bool=True,id_fname:Optional[str]=None) -> DataFrame:
+    """Creates INT ids for a column in dataframe and adds it back as id columns
+
+    Args:
+        fname (str): The filename to store the dataframe in
+        df (DataFrame): The dataframe 
+        col_name (str): The column for which to create integer IDS
+        id_col_name (str): The column name for the new ID column
+        bucket (str): The bucket where to store the data
+        keep_id_mapping(bool): Whether to keep the INT id mapping file. Defaults to True
+        id_fname(str): Optional. The name of id mapping file. Defaults to None.
+
+    Returns:
+        DataFrame: The dataframe with a new column with INT ids
+    """
+    if s3_uri_exists(f"s3a://{bucket}/{fname}.parquet"):
+        # if df alredy materialised 
+        #  rename the file with suffix 
+        rename_s3(fname,fname+"_tmp",bucket=bucket)
+        # load dataframe 
+        _df = get_s3(fname+"_tmp",bucket=bucket)
+    else:
+        # materialise the df in a tmp location
+        _df = materialise_s3(fname+"_tmp",df,bucket=bucket)
+
+    if id_fname is None:
+        id_fname = col_name+"_id_mapping"
+    
+    # check if the INT id column is not there 
+    if id_col_name not in _df.columns:
+        # make INT ids for column
+        id_df = materialise_row_numbers(
+            fname=id_fname,
+            df=spark.sql(f"""
+                SELECT DISTINCT {col_name}
+                FROM {fname}_tmp
+                """),
+            col_name=id_col_name,
+            bucket=bucket
+            )
+        # update the dataframe with the new mapping
+        _df = materialise_s3(
+            fname=fname, 
+            df=spark.sql(f"""
+                SELECT orig.*,{id_col_name} FROM {fname}_tmp orig
+                INNER JOIN {id_fname} USING ({col_name})
+                """),
+            bucket=bucket
+            )
+        # delete the tmp directory
+        delete_s3(fname+"_tmp",bucket=bucket)
+        if not keep_id_mapping:
+            delete_s3(id_fname,bucket=bucket)
+    # if id column already exists, do nothing 
+    else:
+        # rename folder back 
+        rename_s3(fname+"_tmp",fname,bucket=bucket)
+    
+    return _df
+
+
+# %%
