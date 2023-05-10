@@ -2,3 +2,6 @@ s3credentials.toml
 .vscode/launch.json
 *.zip
 *.parquet
+.ipynb_checkpoints
+__pycache__
+*.sum
