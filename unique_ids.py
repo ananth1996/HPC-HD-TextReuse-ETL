@@ -33,8 +33,6 @@ logging.basicConfig(level=args.loglevel)
 logger =  logging.getLogger(__name__)
 #%%
 textreuses_raw = get_s3(fname="txtreuse",bucket=args.input_s3_bucket,table_name="textreuses_raw")
-ecco_core = get_s3(fname="ecco_core",bucket=args.input_s3_bucket)
-eebo_tcp_core = get_s3(fname="eebo_tcp_core",bucket=args.input_s3_bucket)
 #%%
 # get textreuse ids
 textreuse_ids = materialise_row_numbers(
@@ -55,14 +53,6 @@ textreuse_ids = materialise_row_numbers(
     col_name="textreuse_source_id",
     bucket = args.output_s3_bucket)
 #%%
-idmap = materialise_s3_if_not_exists(
-    fname="idmap",
-    df = spark.sql("""
-    SELECT textreuse_source_id,ecco_id,eebo_tcp_id FROM textreuse_ids ti 
-    LEFT JOIN ecco_core ec ON ti.doc_name = ec.ecco_id
-    LEFT JOIN eebo_tcp_core etc ON ti.doc_name = etc.eebo_tcp_id"""),
-    bucket=args.output_s3_bucket)
-#%%
 textreuses = materialise_row_numbers(
     fname="textreuses",
     df=spark.sql("""
@@ -82,44 +72,3 @@ textreuses = materialise_row_numbers(
     bucket=args.output_s3_bucket
 )
 #%%
-
-#%%
-# docs = spark.sql("""
-#         SELECT ecco_id AS doc_name FROM ecco_core
-#         UNION 
-#         SELECT eebo_tcp_id AS doc_id FROM eebo_tcp_core
-# """
-# )
-# docs.explain()
-# docs = dfZipWithIndex(docs,colName="doc_id")
-# idmapping = names.join(docs,on="doc_name")
-# idmapping.tail(10)
-# #%%
-# ## Test 2
-# names = spark.sql("""
-# SELECT 
-#     row_number() OVER(ORDER BY text_name) AS t_id,
-#     text_name,
-#     doc_name
-# FROM (
-#     SELECT text1_id AS text_name, SUBSTRING_INDEX(text1_id,".",1) AS doc_name  FROM textreuses
-#     UNION
-#     SELECT text2_id AS text_name, SUBSTRING_INDEX(text2_id,".",1) AS doc_name  FROM textreuses
-# )
-# """)
-# names.explain()
-# docs = spark.sql("""
-# SELECT 
-#     row_number() OVER(ORDER BY doc_name) as doc_id,
-#     doc_name
-# FROM(
-#         SELECT ecco_id AS doc_name FROM ecco_core
-#         UNION 
-#         SELECT eebo_tcp_id AS doc_id FROM eebo_tcp_core
-# )
-# """
-# )
-# docs.explain()
-# idmapping = names.join(docs,on="doc_name")
-# idmapping.tail(10)
-# %%
