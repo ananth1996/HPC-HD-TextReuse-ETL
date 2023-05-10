@@ -158,8 +158,8 @@ def materialise_row_numbers(fname:str,df:DataFrame,col_name:str,bucket:str,table
     else:
         # rename tmp as correct location
         rename_s3(fname+"_tmp",fname,bucket=bucket)
-    
-    return df
+        _df = get_s3(fname,bucket=bucket)
+    return _df
 
 
 def materialise_with_int_id(fname:str,df:DataFrame,col_name:str,id_col_name:str,bucket:str,keep_id_mapping:bool=True,id_fname:Optional[str]=None) -> DataFrame:
@@ -219,6 +219,7 @@ def materialise_with_int_id(fname:str,df:DataFrame,col_name:str,id_col_name:str,
     else:
         # rename folder back 
         rename_s3(fname+"_tmp",fname,bucket=bucket)
+        _df = get_s3(fname,bucket=bucket)
     
     return _df
 
