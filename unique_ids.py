@@ -1,38 +1,11 @@
 #%%
 from pathlib import Path
 from time import perf_counter as time
-import logging
-import argparse
 from pyspark.sql.functions import *
 from spark_utils import *
-import os
 project_root = Path.cwd().resolve()
 #%%
-def get_parser():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--input_s3_bucket",type=str,help="The s3 bucket where zip file is stored",default="textreuse-raw-data")
-    parser.add_argument("--output_s3_bucket",type=str,help="The s3 buckets where processed files will be",default="textreuse-processed-data")
-    parser.add_argument("--num_partitions",type=int,default=200,help="Number of partitions for spark")
-    parser.add_argument(
-    '-d', '--debug',
-    help="Print lots of debugging statements",
-    action="store_const", dest="loglevel", const=logging.DEBUG,
-    default=logging.WARNING,
-    )
-    parser.add_argument(
-        '-v', '--verbose',
-        help="Be verbose",
-        action="store_const", dest="loglevel", const=logging.INFO,
-    )
-    return parser
-#%%
-#%%
-# Basic Set up
-args = get_parser().parse_args([])
-logging.basicConfig(level=args.loglevel)
-logger =  logging.getLogger(__name__)
-#%%
-textreuses_raw = get_s3(fname="txtreuse",bucket=args.input_s3_bucket,table_name="textreuses_raw")
+textreuses_raw = get_s3(fname="txtreuse",bucket=raw_bucket,table_name="textreuses_raw")
 #%%
 # get textreuse ids
 textreuse_ids = materialise_row_numbers(
