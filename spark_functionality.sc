@@ -171,20 +171,16 @@ def dfZipWithIndex(
 }
 
 def materialise_row_numbers(fname:String,df:DataFrame,col_name:String){
-    // materialise the dataframe as temp folder
-    var _df = materialise_a3s(fname+"_tmp",df)
-
-    // check if the row_number column already exists
-    if (!_df.columns.contains(col_name)){
-        //Write dataframe with row numbers to correct location
-        _df = materialise_a3s(fname,dfZipWithIndex(_df,1,col_name))
-        // then drop old parquet
-        delete_s3(fname+"_tmp")
+    // if already exists then just load
+    if (a3s_path_exists(a3s_path+fname+".parquet")){
+        var _df = get_a3s(fname)
+        return _df
     }
     else{
-        // rename tmp as correct location
-        rename_s3(fname+"_tmp",fname)
+        //Write dataframe with row numbers to correct location
+        var _df = materialise_a3s(fname,dfZipWithIndex(df,1,col_name))
+        return _df
     }
-    return _df
+    
 }
 
