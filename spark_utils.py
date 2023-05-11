@@ -27,7 +27,21 @@ def start_spark_app(project_root:Path,application_name:str="ETL"):
 
 # get the spark sessions
 spark,sc = start_spark_app(project_root=project_root)
+# the buckets
+processed_bucket = "textreuse-processed-data"
+raw_bucket = "textreuse-raw-data"
+# the file systems for the buckets
+processed_fs = sc._jvm.org.apache.hadoop.fs.FileSystem.get(
+        sc._jvm.java.net.URI.create(f"s3a://{processed_bucket}"), 
+        sc._jsc.hadoopConfiguration()
+    )
+raw_fs = sc._jvm.org.apache.hadoop.fs.FileSystem.get(
+        sc._jvm.java.net.URI.create(f"s3a://{raw_bucket}"), 
+        sc._jsc.hadoopConfiguration()
+    )
 
+# create a mapping for easy access
+fs_dict = {processed_bucket:processed_fs,raw_bucket:raw_fs}
 
 def get_local(fname: str, cache: bool = False,table_name: Optional[str] = None):
     if table_name is None:
@@ -49,11 +63,14 @@ def register(table_name: str, df, cache: bool):
         df.createOrReplaceTempView(table_name)
         return df
 
-def s3_uri_exists(path: str):
-    # create a file system for that bucket
-    fs = sc._jvm.org.apache.hadoop.fs.FileSystem.get(
-        sc._jvm.java.net.URI.create(path), sc._jsc.hadoopConfiguration()
-    )
+def s3_uri_exists(path: str,bucket:Optional[str]=None):
+    if bucket is None:
+        # create a file system for that bucket
+        fs = sc._jvm.org.apache.hadoop.fs.FileSystem.get(
+            sc._jvm.java.net.URI.create(path), sc._jsc.hadoopConfiguration()
+        )
+    else:
+        fs = fs_dict[bucket]
     return fs.exists(sc._jvm.org.apache.hadoop.fs.Path(path))
 
 def get_s3(
@@ -73,21 +90,15 @@ def delete_s3(
         bucket:str,
 ):
     path = f"s3a://{bucket}/{fname}.parquet"
-    path_uri =sc._jvm.java.net.URI.create(path)
     _path = sc._jvm.org.apache.hadoop.fs.Path(path)
-    fs = sc._jvm.org.apache.hadoop.fs.FileSystem.get(
-        path_uri, sc._jsc.hadoopConfiguration()
-    )
+    fs = fs_dict[bucket]
     if fs.exists(_path):
         fs.delete(_path,True)
 
 def rename_s3(src_fname:str,dst_fname:str,bucket:str):
     _src_path = sc._jvm.org.apache.hadoop.fs.Path(f"s3a://{bucket}/{src_fname}.parquet")
     _dst_path = sc._jvm.org.apache.hadoop.fs.Path(f"s3a://{bucket}/{dst_fname}.parquet")
-    path_uri = sc._jvm.java.net.URI.create(f"s3a://{bucket}")
-    fs = sc._jvm.org.apache.hadoop.fs.FileSystem.get(
-        path_uri, sc._jsc.hadoopConfiguration()
-    )
+    fs = fs_dict[bucket]
     if (fs.exists(_src_path)):
         fs.rename(_src_path,_dst_path)
 
