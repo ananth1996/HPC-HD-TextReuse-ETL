@@ -149,27 +149,16 @@ def dfZipWithIndex (df, offset=1, col_name="rowId"):
 
 
 def materialise_row_numbers(fname:str,df:DataFrame,col_name:str,bucket:str,table_name:Optional[str]=None):
-    if s3_uri_exists(f"s3a://{bucket}/{fname}.parquet"):
-        # rename the file with suffix 
-        rename_s3(fname,fname+"_tmp",bucket=bucket)
-        _df = get_s3(fname+"_tmp",bucket=bucket)
+    # check if row numbers already materialised
+    if s3_uri_exists(f"s3a://{bucket}/{fname}.parquet",bucket=bucket):
+        _df = get_s3(fname,bucket=bucket)
     else:
-        _df = materialise_s3(fname+"_tmp",df,bucket=bucket)
-
-    # check if the row_number column already exists
-    if col_name not in _df.columns:
-        # Write dataframe with row numbers to a temporary location
+        # write with row numbers to the location
         _df = materialise_s3(
             fname=fname,
-            df=dfZipWithIndex(_df,col_name=col_name),
+            df=dfZipWithIndex(df,col_name=col_name),
             bucket=bucket
         )
-        # then drop temp location
-        delete_s3(fname+"_tmp",bucket=bucket)
-    else:
-        # rename tmp as correct location
-        rename_s3(fname+"_tmp",fname,bucket=bucket)
-        _df = get_s3(fname,bucket=bucket)
     return _df
 
 
