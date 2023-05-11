@@ -196,8 +196,8 @@ clustered_defrag_pieces = materialise_s3_if_not_exists(
 #%%
 defrag_pieces = get_s3("defrag_pieces",bucket=processed_bucket)
 
-earliest_textreuse_source_in_cluster = materialise_s3_if_not_exists(
-    fname="earliest_textreuse_source_in_cluster",
+earliest_textreuse_source_by_cluster = materialise_s3_if_not_exists(
+    fname="earliest_textreuse_source_by_cluster",
     df=spark.sql("""
     SELECT cluster_id, trs_id
     FROM (
@@ -219,8 +219,8 @@ earliest_textreuse_source_in_cluster = materialise_s3_if_not_exists(
 #  and also the pieces of the text which is the earliest of that work
 #    in that cluster
 #%%                          
-earliest_work_and_pieces_in_cluster = materialise_s3_if_not_exists(
-    fname="earliest_work_and_pieces_in_cluster",
+earliest_work_and_pieces_by_cluster = materialise_s3_if_not_exists(
+    fname="earliest_work_and_pieces_by_cluster",
     df=spark.sql("""
     SELECT cluster_id, work_id_i, piece_id
     FROM (
