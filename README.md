@@ -48,9 +48,11 @@ This will install the python library required for the application.
 
 ## Zip to Parquet
 
+The first step will extract the raw textreuses from the `.zip` file. The `.zip` file and the resulting `.parquet` files will reside on Allas.
+
 ### Format 
 
-A rough structure of the data in the text reuse zip is as follows:
+A rough structure of the data in the text reuse `.zip` is as follows:
 ```
 txtreuse.zip
 |-iter_0_out.tar.gz
@@ -60,6 +62,24 @@ txtreuse.zip
 |
 ```
 
+Each `iter_*,json` file contains an array of textreuses which look like:
+```json
+[
+  {
+    "text1_id": "0000100100",
+    "text1_text_start": 405269,
+    "text1_text_end": 405464,
+    "text1_text": "ith some particular Ornament, your\nFace with Beautie, your Head with Wife-\ndome, your Eyes with Majeftie, your\nCountenaunce with Gracefulneffe, your\nLips with Lovelineffe, your Tongue with\nVirori",
+    "text2_id": "A12231.headed_1_text",
+    "text2_text_start": 383611,
+    "text2_text_end": 383795,
+    "text2_text": "ith some particular ornament; her face with beautie, her head with wisdome, her eyes with maiestie, her countenance with gracefulnes, her lippes with louelines, her tongue with victori",
+    "align_length": 163,
+    "positives_percent": 79.14
+  },
+  ...
+]
+```
 ### Streaming S3 zip files 
 
 We use the [`smart_open`](https://github.com/RaRe-Technologies/smart_open) library to stream s3 obejcts in an efficient manner. While `smart_open` allows the [reading and writing of zipfiles](https://github.com/RaRe-Technologies/smart_open), there is a known performance issue in the python `zipfile` module which performs multiple to seeks to current positions of a file stream which causes a s3 buffer to be cleared as seen in this [issue](https://github.com/RaRe-Technologies/smart_open/pull/748). AS of writing this PR was not accepted in to the stable branch of the library. Therefore, we have [forked](https://github.com/HPC-HD/smart_open/tree/s3_ignore_seeks_to_current_position) and applied the patches suggested. We include this forked repo in the poetry dependency at the moment.
@@ -73,4 +93,19 @@ Run the end-to-end etl job as follows on the notebook pod
 spark-submit zip2parquet.py txtreuse.zip -v
 ```
 You can monitor the progess on the spark master. 
+
+
+## Transforming the Textreuses
+
+
+
+## Defragmenting Textreuses
+
+
+## Clustering Defragmented Textreuses
+
+
+## Downstream Data Processing 
+
+
 
