@@ -173,13 +173,11 @@ def dfZipWithIndex(
 def materialise_row_numbers(fname:String,df:DataFrame,col_name:String){
     // if already exists then just load
     if (a3s_path_exists(a3s_path+fname+".parquet")){
-        var _df = get_a3s(fname)
-        return _df
+        return get_a3s(fname)
     }
     else{
         //Write dataframe with row numbers to correct location
-        var _df = materialise_a3s(fname,dfZipWithIndex(df,1,col_name))
-        return _df
+        return materialise_a3s(fname,dfZipWithIndex(df,1,col_name))
     }
     
 }
