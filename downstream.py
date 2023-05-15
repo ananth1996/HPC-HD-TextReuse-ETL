@@ -20,14 +20,30 @@ if notebook:
     project_root = Path.cwd().resolve()
 else:
     project_root = Path(__file__).parent.parent.resolve()
-#%%
-processed_bucket = "textreuse-processed-data"
 #%%[markdown]
 ## Metadata Gathering for Downstream Taskss
 #%%
 estc_core = get_s3("estc_core",bucket="textreuse-raw-data")
 ecco_core = get_s3("ecco_core",bucket="textreuse-raw-data")
 eebo_core = get_s3("eebo_core",bucket="textreuse-raw-data")
+#%%[markdown]
+# Create INT ids for the manifestation ids which are 
+#  ECCO and EEBO_TCP
+#%%
+manifestation_ids = materialise_row_numbers(
+    fname="manifestation_ids",
+    df=spark.sql("""
+    SELECT * FROM(
+        SELECT DISTINCT ecco_id AS manifestation_id FROM ecco_core
+        UNION ALL 
+        SELECT DISTINCT eebo_tcp_id AS manifestation_id FROM eebo_core 
+        WHERE eebo_tcp_id IS NOT NULL
+    )
+    ORDER BY manifestation_id
+    """),
+    col_name="manifestation_id_i",
+    bucket=processed_bucket
+)
 #%%[markdown]
 # create mapping between documents from ECCO and EEBO_TCP to ESTC id
 # There are 1143 EEBO_TCP documents that don'y have a ESTC id, 
@@ -38,26 +54,28 @@ edition_mapping = materialise_with_int_id(
     fname="edition_mapping",
     df=spark.sql("""
     SELECT DISTINCT
-        ecco_id AS manifestation_id,
+        manifestation_id_i,
         estc_id AS edition_id
     FROM ecco_core ecco
+    INNER JOIN manifestation_ids mids ON mids.manifestation_id = ecco.ecco_id
 
     UNION ALL
 
     SELECT DISTINCT
-        eebo_tcp_id AS manifestation_id,
+        manifestation_id_i,
         (CASE 
             WHEN estc_id iS NULL THEN eebo_tcp_id
             ELSE estc_id
         END) AS edition_id
-    FROM eebo_core
-    WHERE eebo_tcp_id IS NOT NULL
+    FROM eebo_core eebo
+    INNER JOIN manifestation_ids mids ON mids.manifestation_id = eebo.eebo_tcp_id
     """),
     col_name="edition_id",
     id_col_name="edition_id_i",
     keep_id_mapping=True,
     id_fname="edition_ids",
-    bucket=processed_bucket
+    bucket=processed_bucket,
+    drop_col=True
 )
 #%%[markdown]
 # For each edition find the work_id from ESTC
@@ -65,23 +83,28 @@ edition_mapping = materialise_with_int_id(
 #  or if the edition_id is new (the EEBO_TCP documents from above),
 #  then make new work ids with a suffix
 #%%
+edition_ids = get_s3("edition_ids",processed_bucket)
+#%%
 work_mapping = materialise_with_int_id(
     fname = "work_mapping",
     df=spark.sql("""
     SELECT DISTINCT
-        em.manifestation_id,
+        em.manifestation_id_i,
         (CASE
-            WHEN ec.work_id IS NULL THEN CONCAT(em.manifestation_id,"-not in estc_core")
+            WHEN ec.work_id IS NULL THEN CONCAT(mids.manifestation_id,"-not_in_estc_core")
             ELSE ec.work_id
         END) AS work_id
     FROM edition_mapping em
-    LEFT JOIN estc_core ec ON em.edition_id = ec.estc_id
+    INNER JOIN manifestation_ids mids USING (manifestation_id_i)
+    INNER JOIN edition_ids eids USING (edition_id_i)
+    LEFT JOIN estc_core ec ON eids.edition_id = ec.estc_id
     """),
     col_name="work_id",
     id_col_name="work_id_i",
     keep_id_mapping=True,
     id_fname="work_ids",
-    bucket=processed_bucket
+    bucket=processed_bucket,
+    drop_col=True
 )
 #%%[markdown]
 ## Publication Year Metadata Gathering
@@ -143,7 +166,7 @@ textreuse_ids = get_s3("textreuse_ids",bucket=processed_bucket)
 textreuse_edition_mapping = materialise_s3_if_not_exists(
     fname="textreuse_edition_mapping",
     df=spark.sql("""
-    SELECT DISTINCT textreuse_source_id, edition_id_i
+    SELECT DISTINCT trs_id, edition_id_i
     FROM textreuse_ids ti
     LEFT JOIN edition_mapping em ON ti.doc_name=em.manifestation_id
     """),
@@ -163,8 +186,8 @@ textreuse_work_mapping = materialise_s3_if_not_exists(
 # find the earliest publication of textreuse sources
 #  from the editions they belong to 
 #%%
-textreuse_source_earliest_publication_year = materialise_s3_if_not_exists(
-    fname="textreuse_source_earliest_publication_year",
+textreuse_earliest_publication_year = materialise_s3_if_not_exists(
+    fname="textreuse_earliest_publication_year",
     df=spark.sql("""
     SELECT 
         textreuse_source_id, 
