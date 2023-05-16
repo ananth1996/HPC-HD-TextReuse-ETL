@@ -23,9 +23,9 @@ else:
 #%%[markdown]
 ## Metadata Gathering for Downstream Taskss
 #%%
-estc_core = get_s3("estc_core",bucket="textreuse-raw-data")
-ecco_core = get_s3("ecco_core",bucket="textreuse-raw-data")
-eebo_core = get_s3("eebo_core",bucket="textreuse-raw-data")
+estc_core = get_s3("estc_core",bucket=raw_bucket)
+ecco_core = get_s3("ecco_core",bucket=raw_bucket)
+eebo_core = get_s3("eebo_core",bucket=raw_bucket)
 #%%[markdown]
 # Create INT ids for the manifestation ids which are 
 #  ECCO and EEBO_TCP
@@ -45,7 +45,7 @@ manifestation_ids = materialise_row_numbers(
     bucket=processed_bucket
 )
 #%%[markdown]
-# create mapping between documents from ECCO and EEBO_TCP to ESTC id
+# create mapping between documents from ECCO and EEBO_TCP to ESTC id.
 # There are 1143 EEBO_TCP documents that don'y have a ESTC id, 
 #   in those cases just use the EEBO_TCP id as a placeholder
 #   call this an edition_id 
@@ -77,13 +77,13 @@ edition_mapping = materialise_with_int_id(
     bucket=processed_bucket,
     drop_col=True
 )
+edition_ids = get_s3("edition_ids",processed_bucket)
 #%%[markdown]
 # For each edition find the work_id from ESTC
-#  if the information is not present in ESTC (as for 113 ECCO documents)
+#  and if the information is not present in ESTC (as for 113 ECCO documents)
 #  or if the edition_id is new (the EEBO_TCP documents from above),
 #  then make new work ids with a suffix
 #%%
-edition_ids = get_s3("edition_ids",processed_bucket)
 #%%
 work_mapping = materialise_with_int_id(
     fname = "work_mapping",
@@ -106,6 +106,7 @@ work_mapping = materialise_with_int_id(
     bucket=processed_bucket,
     drop_col=True
 )
+work_ids = get_s3("work_ids",processed_bucket)
 #%%[markdown]
 ## Publication Year Metadata Gathering
 # gather the publication year for each edition from ESTC first,
@@ -116,7 +117,7 @@ edition_years = materialise_s3_if_not_exists(
     fname="edition_publication_year",
     df=spark.sql("""
     SELECT 
-        edition_id_i,
+        em.edition_id_i,
         (CASE
             WHEN publication_year IS NULL THEN -- when estc_core doesn't have data
             (CASE 
@@ -128,8 +129,10 @@ edition_years = materialise_s3_if_not_exists(
             ELSE CAST(estc.publication_year AS INT)
         END) AS publication_year
     FROM eebo_core ec
-    INNER JOIN edition_mapping em ON ec.eebo_tcp_id = em.manifestation_id
-    LEFT JOIN estc_core estc ON em.edition_id = estc.estc_id
+    INNER JOIN manifestation_ids mids ON ec.eebo_tcp_id = mids.manifestation_id
+    INNER JOIN edition_mapping em USING(manifestation_id_i)
+    INNER JOIN edition_ids eids USING(edition_id_i)
+    LEFT JOIN estc_core estc ON eids.edition_id = estc.estc_id
 
     UNION
 
@@ -140,8 +143,10 @@ edition_years = materialise_s3_if_not_exists(
             ELSE CAST(estc.publication_year AS INT)
         END) AS publication_year
     FROM ecco_core ec
-    INNER JOIN edition_mapping em ON ec.ecco_id = em.manifestation_id
-    LEFT JOIN estc_core estc ON em.edition_id = estc.estc_id
+    INNER JOIN manifestation_ids mids ON ec.ecco_id = mids.manifestation_id
+    INNER JOIN edition_mapping em USING(manifestation_id_i)
+    INNER JOIN edition_ids eids USING(edition_id_i)
+    LEFT JOIN estc_core estc ON eids.edition_id = estc.estc_id
     """),
     bucket=processed_bucket
 )
@@ -153,7 +158,7 @@ work_earliest_publication_year = materialise_s3_if_not_exists(
     df=spark.sql("""
     SELECT work_id_i,MIN(publication_year) as publication_year FROM edition_publication_year
     LEFT JOIN edition_mapping USING(edition_id_i)
-    LEFT JOIN work_mapping USING(manifestation_id)
+    LEFT JOIN work_mapping USING(manifestation_id_i)
     GROUP BY work_id_i
     """),
     bucket=processed_bucket
@@ -162,13 +167,14 @@ work_earliest_publication_year = materialise_s3_if_not_exists(
 # create new id mapping table for textreuse ids
 #%%
 textreuse_ids = get_s3("textreuse_ids",bucket=processed_bucket)
-
+#%%
 textreuse_edition_mapping = materialise_s3_if_not_exists(
     fname="textreuse_edition_mapping",
     df=spark.sql("""
     SELECT DISTINCT trs_id, edition_id_i
     FROM textreuse_ids ti
-    LEFT JOIN edition_mapping em ON ti.doc_name=em.manifestation_id
+    INNER JOIN manifestation_ids mids USING(manifestation_id)
+    INNER JOIN edition_mapping em USING(manifestation_id_i) 
     """),
     bucket=processed_bucket
 )
@@ -176,9 +182,10 @@ textreuse_edition_mapping = materialise_s3_if_not_exists(
 textreuse_work_mapping = materialise_s3_if_not_exists(
     fname="textreuse_work_mapping",
     df=spark.sql("""
-    SELECT DISTINCT textreuse_source_id,work_id_i
+    SELECT DISTINCT trs_id,work_id_i
     FROM textreuse_ids ti
-    LEFT JOIN work_mapping wm ON ti.doc_name=wm.manifestation_id
+    INNER JOIN manifestation_ids USING (manifestation_id)
+    INNER JOIN work_mapping wm USING (manifestation_id_i)
     """),
     bucket=processed_bucket
 )
@@ -190,11 +197,11 @@ textreuse_earliest_publication_year = materialise_s3_if_not_exists(
     fname="textreuse_earliest_publication_year",
     df=spark.sql("""
     SELECT 
-        textreuse_source_id, 
+        trs_id, 
         MIN(publication_year) as publication_year
     FROM textreuse_edition_mapping 
-    LEFT JOIN edition_publication_year epy USING(edition_id_i)
-    GROUP BY textreuse_source_id
+    INNER JOIN edition_publication_year epy USING(edition_id_i)
+    GROUP BY trs_id
     """),
     bucket=processed_bucket
 )
@@ -203,7 +210,7 @@ textreuse_earliest_publication_year = materialise_s3_if_not_exists(
 #%%
 # load the clusters found from the Chinese Whispers algorithm 
 clusters = get_s3("clusters",bucket=processed_bucket)
-
+#%%
 # create row numbers which are the defrag_piece_id
 clustered_defrag_pieces = materialise_s3_if_not_exists(
      fname="clustered_defrag_pieces",
@@ -219,8 +226,8 @@ clustered_defrag_pieces = materialise_s3_if_not_exists(
 #%%
 defrag_pieces = get_s3("defrag_pieces",bucket=processed_bucket)
 
-earliest_textreuse_source_by_cluster = materialise_s3_if_not_exists(
-    fname="earliest_textreuse_source_by_cluster",
+earliest_textreuse_by_cluster = materialise_s3_if_not_exists(
+    fname="earliest_textreuse_by_cluster",
     df=spark.sql("""
     SELECT cluster_id, trs_id
     FROM (
@@ -230,8 +237,8 @@ earliest_textreuse_source_by_cluster = materialise_s3_if_not_exists(
         publication_year,
         MIN(publication_year) OVER (PARTITION BY cluster_id) AS min_publication_year
     FROM clustered_defrag_pieces cdp  
-    INNER JOIN defrag_pieces dp USING (piece_id) 
-    INNER JOIN textreuse_source_earliest_publication_year tsepy ON tsepy.textreuse_source_id = dp.trs_id
+    INNER JOIN defrag_pieces dp USING (piece_id)
+    INNER JOIN textreuse_earliest_publication_year tsepy USING (trs_id)
     )
     WHERE publication_year=min_publication_year
     """),
@@ -257,9 +264,9 @@ earliest_work_and_pieces_by_cluster = materialise_s3_if_not_exists(
         MIN(t.publication_year) OVER (PARTITION BY cluster_id, work_id_i) AS min_publication_year_text
     FROM clustered_defrag_pieces cdp
     INNER JOIN defrag_pieces dp USING (piece_id)
-    INNER JOIN textreuse_work_mapping twm ON twm.textreuse_source_id = dp.trs_id
+    INNER JOIN textreuse_work_mapping twm USING (trs_id)
     INNER JOIN work_earliest_publication_year w USING (work_id_i)
-    INNER JOIN textreuse_source_earliest_publication_year t USING (textreuse_source_id)
+    INNER JOIN textreuse_earliest_publication_year t USING (trs_id)
     )
     WHERE 
         publication_year_work=min_publication_year_work AND -- earliest work in cluster
