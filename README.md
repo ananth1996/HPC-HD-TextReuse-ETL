@@ -155,15 +155,15 @@ Once finished the script will write a `data/clusters.parquet` file in this repo.
 1. `manifestation_ids`: INT ids for all ECCO and EEBO_TCP ids
 
 2. `edition_mapping` : Maps `manifestation_id_i` to `edition_id_i` . Also has a corresponding `edition_ids` table for INT `edition_id_i` to `edition_id` strings. Creates new `edition_id` when no `estc_id` link exists.
-work_mapping : Maps manifestation_id to work_id_i.Also has a corresponding work_ids table for INT work_id_i and string work_id . Creates new work_id when estc_core doesn’t have information.
-edition_publication_year : The publication year of each edition_id . Data pulled from estc_core when available and falls back to ecco_core or eebo_core otherwise
-work_earliest_publication_year: The earliest publication year of all editions for a given work_id_i
-textreuse_edition_mapping : Maps textreuse_source_id to edition_id_i
-textreuse_work_mapping: Maps textreuse_source_id to work_id_i
-textreuse_source_earliest_publication_year: The earliest year of publication of all editions mapped for a given  textreuse_source_id
-clustered_defrag_pieces: The clusters of defragmented textreuse pieces from the Chinese Whispers Algorithm
-earliest_textreuse_source_by_cluster: The trs_id with the earliest publication year for each cluster
-earliest_work_and_pieces_by_cluster : The earliest work_id_i and the corresponding piece_id of all works for each cluster.
+3. `work_mapping` : Maps `manifestation_id_i` to `work_id_i`. Also has a corresponding `work_ids` table for INT `work_id_i` and string `work_id` . Creates new `work_id` when `estc_core` doesn’t have information.
+4. `edition_publication_year` : The publication year for each `edition_id_i` . Data pulled from `estc_core` when available and falls back to `ecco_core` or `eebo_core` otherwise
+5. `work_earliest_publication_year`: The earliest publication year of all editions for a given `work_id_i`
+6. `textreuse_edition_mapping` : Maps `trs_id` to `edition_id_i`
+7. `textreuse_work_mapping`: Maps `trs_id` to work_id_i
+8. `textreuse_earliest_publication_year`: The earliest year of publication of all editions mapped for a given  `trs_id`
+9. `clustered_defrag_pieces`: The clusters of defragmented textreuse pieces from the Chinese Whispers Algorithm
+10. `earliest_textreuse_by_cluster`: The `trs_id` with the earliest publication year for each cluster
+11. `earliest_work_and_pieces_by_cluster` : The earliest `work_id_i` and the corresponding `piece_id` for each cluster.
 
 
 
