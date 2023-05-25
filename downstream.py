@@ -7,14 +7,6 @@ if get_ipython() is not None and __name__ == "__main__":
 else:
     notebook = False
 from pathlib import Path
-from time import perf_counter as time
-import argparse
-import logging
-import os
-from pathlib import Path
-import pandas as pd
-import numpy as np
-import sys
 from spark_utils import *
 if notebook:
     project_root = Path.cwd().resolve()
