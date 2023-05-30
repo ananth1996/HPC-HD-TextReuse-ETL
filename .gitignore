@@ -5,3 +5,4 @@ s3credentials.toml
 .ipynb_checkpoints
 __pycache__
 *.sum
+checkpoints/
