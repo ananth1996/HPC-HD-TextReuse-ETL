@@ -43,31 +43,24 @@ textreuse_ids.count()
 #%%
 # Mandeville Fable of the Bees
 doc_id = '0672600300'
-# find the textreuse source for the given document
-doc_trs_id = textreuse_ids.filter(f"manifestation_id={doc_id}").select("trs_id")
-# find the pieces of the document
-doc_pieces = defrag_pieces.join(doc_trs_id,"trs_id")
-# find the reception edges 
-doc_reception_edges = reception_edges.join(doc_pieces,col("src_piece_id")==col("piece_id")).select("src_piece_id","dst_piece_id")
-# join back with piece info to get the offset locations of source and destination
-result = (
-    doc_reception_edges.
-    join(defrag_pieces,col("src_piece_id")==col("piece_id")).
-    select(
-        col("trs_id").alias("src_trs_id"),
-        col("trs_start").alias("src_trs_start"),
-        col("trs_end").alias("src_trs_end"),
-        "dst_piece_id"
-    ).
-    join(defrag_pieces,col("dst_piece_id")==col("piece_id"))
-    .select(
-        "src_trs_id",
-        "src_trs_start",
-        "src_trs_end",
-        col("trs_id").alias("dst_trs_id"),
-        col("trs_start").alias("dst_trs_start"),
-        col("trs_end").alias("dst_trs_end"),
-    )
-).cache()
+
+result = spark.sql(f"""
+WITH doc_trs_ids AS (
+    SELECT trs_id FROM textreuse_ids WHERE manifestation_id = {doc_id}
+), doc_pieces AS (
+    SELECT * FROM defrag_pieces 
+    INNER JOIN doc_trs_ids USING(trs_id)
+)
+SELECT 
+    doc.trs_id AS src_trs_id,
+    doc.trs_start AS src_trs_start,
+    doc.trs_end AS src_trs_end,
+    dp.trs_id AS dst_trs_id,
+    dp.trs_start AS dst_trs_start,
+    dp.trs_end AS dst_trs_end
+FROM reception_edges 
+INNER JOIN doc_pieces doc ON src_piece_id = doc.piece_id
+INNER JOIN defrag_pieces dp ON dst_piece_id = dp.piece_id
+""").cache()
 result.count()
 # %%
