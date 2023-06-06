@@ -32,6 +32,8 @@ spark,sc = start_spark_app(project_root=project_root)
 # the buckets
 processed_bucket = "textreuse-processed-data"
 raw_bucket = "textreuse-raw-data"
+denorm_bucket = "textreuse-denormalized-data"
+
 # the file systems for the buckets
 processed_fs = sc._jvm.org.apache.hadoop.fs.FileSystem.get(
         sc._jvm.java.net.URI.create(f"s3a://{processed_bucket}"), 
@@ -42,8 +44,13 @@ raw_fs = sc._jvm.org.apache.hadoop.fs.FileSystem.get(
         sc._jsc.hadoopConfiguration()
     )
 
+denorm_fs = sc._jvm.org.apache.hadoop.fs.FileSystem.get(
+        sc._jvm.java.net.URI.create(f"s3a://{denorm_bucket}"), 
+        sc._jsc.hadoopConfiguration()
+    )
+
 # create a mapping for easy access
-fs_dict = {processed_bucket:processed_fs,raw_bucket:raw_fs}
+fs_dict = {processed_bucket:processed_fs,raw_bucket:raw_fs,denorm_bucket:denorm_fs}
 
 def get_local(fname: str, cache: bool = False,table_name: Optional[str] = None):
     if table_name is None:
