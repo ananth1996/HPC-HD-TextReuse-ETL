@@ -31,14 +31,16 @@ reception_edges = materialise_s3_if_not_exists(
     )
     SELECT ewapbca.piece_id as src_piece_id, nsp.piece_id as dst_piece_id
     FROM earliest_work_and_pieces_by_cluster ewapbca 
-    LEFT JOIN non_source_pieces nsp USING(cluster_id)
+    -- only if a cluster has non_source pieces add edges
+    --  hence, some clusters which are only source pieces will not have edges
+    INNER JOIN non_source_pieces nsp USING(cluster_id)
     """),
     bucket=processed_bucket,
 )
 #%%
 ## Create a denormalized version of the reception edges 
 ##   here the pieces are denormalizes to ensure quicker searches
-reception_edges = materialise_s3_if_not_exists(
+reception_edges_denorm = materialise_s3_if_not_exists(
     fname="reception_edges_denorm",
     df = spark.sql("""
     SELECT 
