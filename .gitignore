@@ -6,7 +6,4 @@ s3credentials.toml
 __pycache__
 *.sum
 checkpoints/
-mandeville_bipartite_new/_SUCCESS
-mandeville_bipartite_new/._SUCCESS.crc
-mandeville_bipartite_new/.part-00000-ea0a3c8e-7257-4dcc-85dd-cdb2fc35ab98-c000.csv.crc
-mandeville_bipartite_new/mandeville_bipartite_new.csv
+mandeville_bipartite_new/
