@@ -17,6 +17,7 @@ jupyter = "^1.0.0"
 ijson = "^3.2.0.post0"
 autopep8 = "^2.0.2"
 pandas = {extras = ["compression", "computation", "feather", "hdf5", "mysql", "parquet", "performance", "plot"], version = "^2.0.1"}
+tqdm = "^4.65.0"
 
 
 [build-system]
