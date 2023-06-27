@@ -224,5 +224,19 @@ def materialise_with_int_id(fname:str,df:DataFrame,col_name:str,id_col_name:str,
     
     return _df
 
+with open(project_root/"database.toml") as fp:
+    db_options = toml.load(fp)
+
+def jdbc_opts(conn,db_options:dict=db_options):
+    opts = db_options["mariadb"]
+    return (conn
+        .format("jdbc")
+        .option("driver", opts["driver"])
+        .option("url", opts["url"])
+        .option("user", opts["user"])
+        .option("password", opts["password"])
+        .option("fetchsize",opts["fetchsize"])
+        .option("batchsize",opts["batchsize"]))
+
 
 # %%
