@@ -30,7 +30,7 @@ def start_spark_app(project_root:Path,application_name:str="ETL"):
 # get the spark sessions
 spark,sc = start_spark_app(project_root=project_root)
 # the buckets
-processed_bucket = "textreuse-processed-data"
+processed_bucket = "textreuse-new-processed-data"
 raw_bucket = "textreuse-raw-data"
 denorm_bucket = "textreuse-denormalized-data"
 
