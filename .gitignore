@@ -7,3 +7,4 @@ __pycache__
 *.sum
 checkpoints/
 mandeville_bipartite_new/
+database.toml
