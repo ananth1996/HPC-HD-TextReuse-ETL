@@ -8,3 +8,4 @@ __pycache__
 checkpoints/
 mandeville_bipartite_new/
 database.toml
+data/
