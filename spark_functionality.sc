@@ -78,7 +78,7 @@ def get_partitioned(table: String, column: String, numPartitions: Int = 200): Da
         .option("upperBound", ub)
 }
 
-val a3s_path = "s3a://textreuse-processed-data/"
+val a3s_path = "s3a://textreuse-new-processed-data/"
 
 def noop(name: String, df: DataFrame) = df
 
