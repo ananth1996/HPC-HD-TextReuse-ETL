@@ -6,17 +6,19 @@ if get_ipython() is not None and __name__ == "__main__":
     get_ipython().run_line_magic("autoreload", "2")
 else:
     notebook = False
-from pathlib import Path
-from pathlib import Path
 from spark_utils import *
+from pathlib import Path
 if notebook:
     project_root = Path.cwd().resolve()
 else:
     project_root = Path(__file__).parent.parent.resolve()
 from graphframes import *
 #%%
-defrag_pieces = get_s3("defrag_pieces",processed_bucket).withColumnRenamed("piece_id","id")
-defrag_textreuses = get_s3("defrag_textreuses",processed_bucket).withColumnRenamed("piece1_id","src").withColumnRenamed("piece2_id","dst")
+defrag_pieces = get_s3("defrag_pieces",processed_bucket).withColumnRenamed("piece_id","id").select("id").repartition(500)
+defrag_textreuses = (get_s3("defrag_textreuses",processed_bucket).
+                     withColumnRenamed("piece1_id","src").
+                     withColumnRenamed("piece2_id","dst").select("src","dst").repartition(500)
+)
 # %%
 G = GraphFrame(defrag_pieces, defrag_textreuses)
 #%%
@@ -36,3 +38,11 @@ else:
 clustered_defrag_pieces = get_s3("clustered_defrag_pieces",processed_bucket)
 # %%
 
+clustering = G.labelPropagation(maxIter=5)
+
+# %%
+materialise_s3_if_not_exists(
+    fname="clusters",
+    df=clustering,
+    bucket=processed_bucket
+)
