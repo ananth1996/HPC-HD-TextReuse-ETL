@@ -22,23 +22,35 @@ defrag_textreuses = (get_s3("defrag_textreuses",processed_bucket).
 # %%
 G = GraphFrame(defrag_pieces, defrag_textreuses)
 #%%
-checkpoint_dir = project_root/"checkpoints"
-checkpoint_dir.mkdir(exist_ok=True,parents=True)
-sc.setCheckpointDir(str(checkpoint_dir))
+#checkpoint_dir = project_root/"checkpoints"
+#checkpoint_dir.mkdir(exist_ok=True,parents=True)
+#sc.setCheckpointDir(str(checkpoint_dir))
 #%%
-if not s3_uri_exists(f"s3a://{processed_bucket}/defrag_pieces_connected_components.parquet"):
-    defrag_pieces_connected_components = materialise_s3(
-        fname = "defrag_pieces_connected_components",
-        df =G.connectedComponents().withColumnRenamed("id","piece_id").select("piece_id","component"),
-        bucket= processed_bucket
-    )
-else:
-    defrag_pieces_connected_components = get_s3("defrag_pieces_connected_components",processed_bucket)
+if False:
+    if not s3_uri_exists(f"s3a://{processed_bucket}/defrag_pieces_connected_components.parquet"):
+        defrag_pieces_connected_components = materialise_s3(
+            fname = "defrag_pieces_connected_components",
+            df =G.connectedComponents().withColumnRenamed("id","piece_id").select("piece_id","component"),
+            bucket= processed_bucket
+        )
+    else:
+        defrag_pieces_connected_components = get_s3("defrag_pieces_connected_components",processed_bucket)
 #%%
-clustered_defrag_pieces = get_s3("clustered_defrag_pieces",processed_bucket)
+#clustered_defrag_pieces = get_s3("clustered_defrag_pieces",processed_bucket)
 # %%
 
-clustering = G.labelPropagation(maxIter=5)
+import time
+
+print("start clustering")
+start = time.time()
+clustering = G.labelPropagation(maxIter=1)
+end = time.time()
+print(end - start)
+print("start clustering 2")
+start = time.time()
+clustering = G.labelPropagation(maxIter=2)
+end = time.time()
+print(end - start)
 
 # %%
 materialise_s3_if_not_exists(

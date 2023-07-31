@@ -7,7 +7,6 @@ if get_ipython() is not None and __name__ == "__main__":
 else:
     notebook = False
 from pathlib import Path
-from pathlib import Path
 from spark_utils import *
 from pyspark.sql.functions import *
 if notebook:
