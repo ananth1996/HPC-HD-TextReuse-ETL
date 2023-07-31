@@ -8,13 +8,21 @@ from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.types import StructField, StructType, LongType
 
+# the buckets
+processed_bucket = "textreuse-new-processed-data"
+raw_bucket = "textreuse-raw-data"
+denorm_bucket = "textreuse-denormalized-data"
+
 def start_spark_app(project_root:Path,application_name:str="ETL"):
     os.environ['PYSPARK_PYTHON'] = str(project_root/".venv/bin/python")
-    findspark.add_packages("graphframes:graphframes:0.8.2-spark3.2-s_2.12")
+    #findspark.add_packages("graphframes:graphframes:0.8.2-spark3.2-s_2.12")
     findspark.init()
     spark = (SparkSession
             .builder
             .appName("ETL")
+            #.config('spark.ui.showConsoleProgress', 'false')
+            #.config('spark.graphx.pregel.checkpointInterval','1')
+            .enableHiveSupport()
             .getOrCreate())
     spark.sparkContext.setLogLevel("WARN")
     sc = spark.sparkContext
@@ -25,14 +33,15 @@ def start_spark_app(project_root:Path,application_name:str="ETL"):
     sc._jsc.hadoopConfiguration().set("fs.s3a.access.key", cred["default"]["aws_access_key_id"])
     sc._jsc.hadoopConfiguration().set("fs.s3a.secret.key", cred["default"]["aws_secret_access_key"])
     sc._jsc.hadoopConfiguration().set("fs.s3a.endpoint", cred["default"]["endpoint_url"])
+    #checkpoint_dir = project_root/"checkpoints"
+    #checkpoint_dir.mkdir(exist_ok=True,parents=True)
+    #sc.setCheckpointDir(str(checkpoint_dir))
+    sc.setCheckpointDir(f"s3a://{processed_bucket}/checkpoints")
+
     return spark,sc
 
 # get the spark sessions
 spark,sc = start_spark_app(project_root=project_root)
-# the buckets
-processed_bucket = "textreuse-new-processed-data"
-raw_bucket = "textreuse-raw-data"
-denorm_bucket = "textreuse-denormalized-data"
 
 # the file systems for the buckets
 processed_fs = sc._jvm.org.apache.hadoop.fs.FileSystem.get(
