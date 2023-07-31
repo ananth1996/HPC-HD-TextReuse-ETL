@@ -9,3 +9,7 @@ checkpoints/
 mandeville_bipartite_new/
 database.toml
 data/
+metastore_db/
+.ammonite/
+.vscode/
+.metals/
