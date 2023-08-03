@@ -130,8 +130,10 @@ edition_years = materialise_s3_if_not_exists(
 
     SELECT edition_id_i,
         (CASE
-            WHEN publication_year IS NULL -- when estc_core doesn't have data
-            THEN CAST(SUBSTRING(ec.ecco_date_start,1,4) AS INT) -- Eg: 17580101 -> 1758
+            WHEN publication_year IS NULL AND ec.ecco_date_start != 0 -- when estc_core doesn't have data
+            THEN CAST(SUBSTRING(CAST(ec.ecco_date_start AS INT),1,4) AS INT) -- Eg: 1.7580101E7 -> 17580101 -> "1758" -> 1758
+            WHEN publication_year IS NULL AND ec.ecco_date_start == 0 -- Don't record 0 years  
+            THEN NULL
             ELSE CAST(estc.publication_year AS INT)
         END) AS publication_year
     FROM ecco_core ec
