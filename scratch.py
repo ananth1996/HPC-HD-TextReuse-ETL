@@ -14,15 +14,17 @@ if notebook:
 else:
     project_root = Path(__file__).parent.parent.resolve()
 import numpy as np
-from sqlalchemy import create_engine
+from sqlalchemy import text
 import toml
 #%%
 earliest_work_and_pieces_by_cluster = get_s3("earliest_work_and_pieces_by_cluster",processed_bucket)
 clustered_defrag_pieces = get_s3("clustered_defrag_pieces",processed_bucket)
 
-if (project_root/"non_source_pieces").exists :
+if (project_root/"non_source_pieces").exists:
+    print("Data exists loading")
     non_source_pieces = get_local("non_source_pieces")
 else:
+    print("Data doesn't exists creating")
     non_source_pieces = materialise_local(
         name="non_source_pieces",
         df = spark.sql("""
@@ -48,7 +50,7 @@ UNIQUE KEY `piece_covering` (`piece_id`,`cluster_id`);
 """
 
 conn = get_sqlalchemy_connection()
-conn.execute(schema)
+conn.execute(text(schema))
 (
     jdbc_opts(non_source_pieces.write)
     .option("dbtable", "non_source_pieces") 
@@ -56,7 +58,7 @@ conn.execute(schema)
     .mode("overwrite")
     .save()
 )
-conn.execute(indexes)
+conn.execute(text(indexes))
 conn.close()
 
 
