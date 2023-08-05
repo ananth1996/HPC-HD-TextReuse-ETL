@@ -7,7 +7,6 @@ if get_ipython() is not None and __name__ == "__main__":
 else:
     notebook = False
 from pathlib import Path
-from pathlib import Path
 from spark_utils import *
 from pyspark.sql.functions import col
 if notebook:
@@ -109,6 +108,7 @@ if __name__ == "__main__":
     df = spark.sql("SELECT ti.manifestation_id, COUNT(*) as num_reception_edges FROM reception_edges_denorm INNER JOIN textreuse_ids ti ON src_trs_id = ti.trs_id  GROUP BY ti.manifestation_id")
     pdf = df.toPandas()
     pdf = pdf.sort_values(by=["num_reception_edges","manifestation_id"],ascending=[False,True])
+    pdf.to_csv("./data/num_reception_edges.csv",index=False)
     manifestation_ids = pdf.manifestation_id.values
     num_reception_edges = pdf.num_reception_edges.values
     quartile = np.quantile(num_reception_edges,[0,0.25,0.5,0.75,1])
