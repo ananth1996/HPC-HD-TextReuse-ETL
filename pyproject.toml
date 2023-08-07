@@ -16,10 +16,10 @@ toml = "^0.10.2"
 jupyter = "^1.0.0"
 ijson = "^3.2.0.post0"
 autopep8 = "^2.0.2"
-pandas = {extras = ["compression", "computation", "feather", "hdf5", "mysql", "parquet", "performance", "plot"], version = "^2.0.1"}
 tqdm = "^4.65.0"
 seaborn = "^0.12.2"
 powerlaw = "^1.5"
+pandas = {extras = ["compression", "computation", "excel", "feather", "mysql", "output-formatting", "parquet", "performance", "plot"], version = "^2.0.3"}
 
 
 [build-system]

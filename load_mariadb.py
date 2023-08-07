@@ -26,16 +26,18 @@ metadata_tables = [
     ["edition_mapping",processed_bucket,],
     ["edition_publication_year",processed_bucket,],
     ["work_earliest_publication_year",processed_bucket,],
+    ["textreuse_earliest_publication_year",processed_bucket,],
     ["edition_authors",processed_bucket,],
-    ["estc_core",raw_bucket,],
-    ["ecco_core",raw_bucket,],
-    ["eebo_core",raw_bucket,],
-    ["eebo_tcp_core",raw_bucket,],
-    ["estc_actor_links",raw_bucket,],
-    ["estc_actors",raw_bucket,],
+    # ["estc_core",raw_bucket,],
+    # ["ecco_core",raw_bucket,],
+    # ["eebo_core",raw_bucket,],
+    # ["eebo_tcp_core",raw_bucket,],
+    # ["estc_actor_links",raw_bucket,],
+    # ["estc_actors",raw_bucket,],
 ]
 for table,bucket in metadata_tables:
     df =  get_s3(table,bucket)
+    print(f"Loading {table=}\n{df}")
     (
         jdbc_opts(df.write).
         option("createTableOptions","ENGINE=ARIA TRANSACTIONAL=0 PAGE_CHECKSUM=0")
@@ -54,13 +56,14 @@ data_tables = [
     ["clustered_defrag_pieces",processed_bucket,],
     ["earliest_textreuse_by_cluster",processed_bucket,],
     ["earliest_work_and_pieces_by_cluster",processed_bucket,],
-    ["reception_edges",processed_bucket,],
-    ["source_piece_statistics",processed_bucket,],
+    # ["reception_edges",processed_bucket,],
+    # ["source_piece_statistics",processed_bucket,],
     ["reception_edges_denorm",denorm_bucket,],
     ["source_piece_statistics_denorm",denorm_bucket,],
 ]
 for table,bucket in data_tables:
     df =  get_s3(table,bucket)
+    print(f"Loading {table=}\n {df}")
     (
         jdbc_opts(df.write).
         option("createTableOptions","ENGINE=ARIA TRANSACTIONAL=0 PAGE_CHECKSUM=0")
