@@ -10,7 +10,7 @@ from spark_utils import *
 if notebook:
     project_root = Path.cwd().resolve()
 else:
-    project_root = Path(__file__).parent.parent.resolve()
+    project_root = Path(__file__).parent.resolve()
 from time import perf_counter as time
 import numpy as np
 import pandas as pd
@@ -97,6 +97,8 @@ if __name__ == "__main__":
         df = pd.read_csv(file_loc)
     else:
         print("Ground Truth file not present. Creating...")
+        textreuse_ids = get_s3("textreuse_ids",processed_bucket)
+        reception_edges_denorm = get_s3("reception_edges_denorm",denorm_bucket)
         sdf = spark.sql("SELECT ti.manifestation_id, COUNT(*) as num_reception_edges FROM reception_edges_denorm INNER JOIN textreuse_ids ti ON src_trs_id = ti.trs_id  GROUP BY ti.manifestation_id")
         df = sdf.toPandas()
         df = df.sort_values(by=["num_reception_edges","manifestation_id"],ascending=[False,True])
