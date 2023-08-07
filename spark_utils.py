@@ -7,7 +7,6 @@ import os
 from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.types import StructField, StructType, LongType
-from sqlalchemy import create_engine
 def start_spark_app(project_root:Path,application_name:str="ETL"):
     os.environ['PYSPARK_PYTHON'] = str(project_root/".venv/bin/python")
     findspark.add_packages("graphframes:graphframes:0.8.2-spark3.2-s_2.12")
@@ -240,10 +239,3 @@ def jdbc_opts(conn,db_options:dict=db_options):
 
 
 # %%
-
-def get_sqlalchemy_connection():
-    opts = db_options["mariadb"]
-    engine_string = f"mysql+pymysql://{opts['user']}:{opts['password']}@{opts['host']}/{opts['database']}?charset=utf8mb4"
-    engine = create_engine(engine_string, future=True)
-    conn = engine.connect()
-    return conn

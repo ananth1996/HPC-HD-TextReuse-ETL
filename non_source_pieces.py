@@ -9,6 +9,7 @@ else:
     notebook = False
 from pathlib import Path
 from spark_utils import *
+from db_utils import *
 from pyspark.sql.functions import col
 if notebook:
     project_root = Path.cwd().resolve()
