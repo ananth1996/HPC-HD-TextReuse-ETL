@@ -21,22 +21,18 @@ import toml
 
 
 if __name__ == "__main__":
-    if (project_root/"non_source_pieces").exists:
-        print("Data exists loading")
-        non_source_pieces = get_local("non_source_pieces")
-    else:
-        print("Data doesn't exists creating in ")
-        earliest_work_and_pieces_by_cluster = get_s3("earliest_work_and_pieces_by_cluster",processed_bucket)
-        clustered_defrag_pieces = get_s3("clustered_defrag_pieces",processed_bucket)
-        non_source_pieces = materialise_local(
-            name="non_source_pieces",
-            df = spark.sql("""
-            SELECT cluster_id,piece_id FROM earliest_work_and_pieces_by_cluster 
-            RIGHT JOIN clustered_defrag_pieces cdp USING(cluster_id,piece_id) 
-            WHERE work_id_i IS NULL -- where it is not the earliest piece
-            """),
-            cache=False
-        )
+
+    earliest_work_and_pieces_by_cluster = get_s3("earliest_work_and_pieces_by_cluster",processed_bucket)
+    clustered_defrag_pieces = get_s3("clustered_defrag_pieces",processed_bucket)
+    non_source_pieces = materialise_s3_if_not_exists(
+        fname="non_source_pieces",
+        df = spark.sql("""
+        SELECT cluster_id,piece_id FROM earliest_work_and_pieces_by_cluster 
+        RIGHT JOIN clustered_defrag_pieces cdp USING(cluster_id,piece_id) 
+        WHERE work_id_i IS NULL -- where it is not the earliest piece
+        """),
+        bucket=processed_bucket
+    )
 
     schema = "CREATE TABLE IF NOT EXISTS `non_source_pieces` (`cluster_id` int(11) unsigned NOT NULL,`piece_id` bigint(20) unsigned NOT NULL)ENGINE=Aria PAGE_CHECKSUM=0 TRANSACTIONAL=0;"
     indexes = "ALTER TABLE `non_source_pieces` ADD UNIQUE KEY `cluster_covering` (`cluster_id`,`piece_id`),ADD UNIQUE KEY `piece_covering` (`piece_id`,`cluster_id`);"
