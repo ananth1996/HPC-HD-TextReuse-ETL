@@ -19,7 +19,7 @@ import powerlaw
 #%%
 data_dir = project_root/"data"
 num_reception_edges = pd.read_csv(data_dir/"num_reception_edges.csv")
-reception_query_results = pd.read_csv(data_dir/"reception_query_results.csv")
+reception_query_results = pd.read_csv(data_dir/"spark_reception_query_results.csv")
 #%%[markdown]
 ### Distribution of number of reception edges
 #%%
@@ -31,13 +31,12 @@ plt.title("Power Law distribution")
 # %%
 reception_query_results
 # %%
-melt_df = reception_query_results.melt(id_vars=["trs_id","quartile"],value_vars=["denorm_time","standard_time"])
-sns.barplot(data=melt_df,x="quartile",y='value',hue="variable")
+sns.barplot(data=reception_query_results,x="quantile",y='Duration',hue="query_type")
 plt.ylabel("Running Time in seconds")
 plt.legend(bbox_to_anchor=(1,0.5),loc="upper left")
 plt.title("Spark Results")
 # %%
-sns.barplot(data=reception_query_results,x="quartile",y="ground_truth",log=True)
+sns.barplot(data=reception_query_results,x="quantile",y="ground_truth",log=True)
 plt.ylabel("Number of reception edges")
 plt.title("Distribution of samples")
 #%%
