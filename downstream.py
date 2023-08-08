@@ -8,12 +8,30 @@ else:
     notebook = False
 from pathlib import Path
 from spark_utils import *
+from pyspark.sql.functions import to_date,col
 if notebook:
     project_root = Path.cwd().resolve()
 else:
     project_root = Path(__file__).parent.parent.resolve()
 #%%[markdown]
-## Metadata Gathering for Downstream Taskss
+## Metadata Gathering for Downstream Tasks
+
+newspapers_raw_csv = f"s3a://{raw_bucket}/bl_newspapers_meta.csv"
+newspapers_raw_parquet = f"s3a://{raw_bucket}/newspapers_core.parquet"
+if s3_uri_exists(newspapers_raw_parquet,raw_bucket):
+    newspapers_core = get_s3("newspapers_core",raw_bucket)
+else:
+    newspapers_core = spark.read.option("header",True).csv(newspapers_raw_csv)
+    newspapers_core = (newspapers_core
+                    .withColumn("issue_date_start",to_date(col("issue_date_start"),"yyyy-MM-dd"))
+                    .withColumn("issue_date_end",to_date(col("issue_date_end"),"yyyy-MM-dd"))
+                    )
+    newspapers_core = materialise_s3(
+        fname="newspapers_core",
+        df=newspapers_core,
+        bucket=raw_bucket
+    )
+#%%
 #%%
 estc_core = get_s3("estc_core",bucket=raw_bucket)
 ecco_core = get_s3("ecco_core",bucket=raw_bucket)
@@ -30,6 +48,8 @@ manifestation_ids = materialise_row_numbers(
         UNION ALL 
         SELECT DISTINCT eebo_tcp_id AS manifestation_id FROM eebo_core 
         WHERE eebo_tcp_id IS NOT NULL
+        UNION ALL 
+        SELECT DISTINCT article_id AS manifestation_id FROM newspapers_core
     )
     ORDER BY manifestation_id
     """),
@@ -37,10 +57,15 @@ manifestation_ids = materialise_row_numbers(
     bucket=processed_bucket
 )
 #%%[markdown]
-# create mapping between documents from ECCO and EEBO_TCP to ESTC id.
+# create mapping between documents from manifestations and editions.
+# For books this is bewtwen ECCO and EEBO_TCP to ESTC id.
 # There are 1143 EEBO_TCP documents that don'y have a ESTC id, 
-#   in those cases just use the EEBO_TCP id as a placeholder
-#   call this an edition_id 
+#       in those cases just use the EEBO_TCP id as a placeholder
+#       call this an edition_id.
+# Similarly, there are some ECCO documents that don't have an ESTC id,
+#       in those cases the ECCO id is used as placeholder edition
+# For newspapers there is not true edition. While there are issues, these
+# are logically different. Therefore, we just map each article to its own individual issue
 #%%
 edition_mapping = materialise_with_int_id(
     fname="edition_mapping",
@@ -61,6 +86,14 @@ edition_mapping = materialise_with_int_id(
         END) AS edition_id
     FROM eebo_core eebo
     INNER JOIN manifestation_ids mids ON mids.manifestation_id = eebo.eebo_tcp_id
+                 
+    UNION ALL 
+                 
+    SELECT 
+        manifestation_id_i,
+        article_id AS edition_id 
+    FROM newspapers_core news
+    INNER JOIN manifestation_ids mids ON mids.manifestation_id = news.article_id
     """),
     col_name="edition_id",
     id_col_name="edition_id_i",
@@ -74,7 +107,8 @@ edition_ids = get_s3("edition_ids",processed_bucket)
 # For each edition find the work_id from ESTC
 #  and if the information is not present in ESTC (as for 113 ECCO documents)
 #  or if the edition_id is new (the EEBO_TCP documents from above),
-#  then make new work ids with a suffix
+#  then make new work ids with the same manifestation_id
+# This will the default for the newspapers data which has no mapping to ESTC
 #%%
 #%%
 work_mapping = materialise_with_int_id(
@@ -83,7 +117,7 @@ work_mapping = materialise_with_int_id(
     SELECT DISTINCT
         em.manifestation_id_i,
         (CASE
-            WHEN ec.work_id IS NULL THEN CONCAT(mids.manifestation_id,"-not_in_estc_core")
+            WHEN ec.work_id IS NULL THEN mids.manifestation_id
             ELSE ec.work_id
         END) AS work_id
     FROM edition_mapping em
