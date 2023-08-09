@@ -20,6 +20,9 @@ def start_spark_app(project_root:Path,application_name:str="ETL"):
     spark = (SparkSession
             .builder
             .appName("ETL")
+            # To account for issue with historical dates 
+            # See https://docs.databricks.com/en/error-messages/inconsistent-behavior-cross-version-error-class.html#write_ancient_datetime
+            .config("spark.sql.parquet.datetimeRebaseModeInWrite","CORRECTED")
             #.config('spark.ui.showConsoleProgress', 'false')
             #.config('spark.graphx.pregel.checkpointInterval','1')
             .enableHiveSupport()
