@@ -198,10 +198,10 @@ edition_dates = materialise_s3_if_not_exists(
 #%%[markdown]
 # For each work find the earliest year of publication based on the editions
 #%%
-work_earliest_publication_year = materialise_s3_if_not_exists(
-    fname="work_earliest_publication_year",
+work_earliest_publication_date = materialise_s3_if_not_exists(
+    fname="work_earliest_publication_date",
     df=spark.sql("""
-    SELECT work_id_i,MIN(publication_year) as publication_year FROM edition_publication_year
+    SELECT work_id_i,MIN(publication_date) as publication_date FROM edition_publication_date
     LEFT JOIN edition_mapping USING(edition_id_i)
     LEFT JOIN work_mapping USING(manifestation_id_i)
     GROUP BY work_id_i
@@ -238,14 +238,14 @@ textreuse_work_mapping = materialise_s3_if_not_exists(
 # find the earliest publication of textreuse sources
 #  from the editions they belong to 
 #%%
-textreuse_earliest_publication_year = materialise_s3_if_not_exists(
-    fname="textreuse_earliest_publication_year",
+textreuse_earliest_publication_date = materialise_s3_if_not_exists(
+    fname="textreuse_earliest_publication_date",
     df=spark.sql("""
     SELECT 
         trs_id, 
-        MIN(publication_year) as publication_year
+        MIN(publication_date) as publication_date
     FROM textreuse_edition_mapping 
-    INNER JOIN edition_publication_year epy USING(edition_id_i)
+    INNER JOIN edition_publication_date epy USING(edition_id_i)
     GROUP BY trs_id
     """),
     bucket=processed_bucket
