@@ -149,21 +149,21 @@ work_ids = get_s3("work_ids",processed_bucket)
 #   if information does not exits then take from ECCO or EEBO_TCP source
 #   clean and put metadata in a table
 #%%
-edition_years = materialise_s3_if_not_exists(
-    fname="edition_publication_year",
+edition_dates = materialise_s3_if_not_exists(
+    fname="edition_publication_date",
     df=spark.sql("""
     SELECT 
         em.edition_id_i,
         (CASE
             WHEN publication_year IS NULL THEN -- when estc_core doesn't have data
             (CASE 
-                WHEN LENGTH(eebo_tls_publication_date) = 4 THEN CAST(eebo_tls_publication_date AS INT) -- Eg: 1697
-                WHEN LENGTH(eebo_tls_publication_date) = 5 THEN CAST(SUBSTRING(eebo_tls_publication_date,-4) AS INT) -- Eg: -1697
-                WHEN LENGTH(eebo_tls_publication_date) = 9 THEN CAST(SUBSTRING(eebo_tls_publication_date,1,4) AS INT) -- Eg: 1690-1697
-                WHEN LENGTH(eebo_tls_publication_date) > 9 THEN CAST(SUBSTRING(eebo_tls_publication_date,-4) AS INT) -- Eg: April 24, 1649
+                WHEN LENGTH(eebo_tls_publication_date) = 4 THEN to_date(eebo_tls_publication_date,'yyyy') -- Eg: 1697
+                WHEN LENGTH(eebo_tls_publication_date) = 5 THEN to_date(SUBSTRING(eebo_tls_publication_date,-4),'yyyy') -- Eg: -1697
+                WHEN LENGTH(eebo_tls_publication_date) = 9 THEN to_date(SUBSTRING(eebo_tls_publication_date,1,4), 'yyyy') -- Eg: 1690-1697
+                WHEN LENGTH(eebo_tls_publication_date) > 9 THEN to_date(eebo_tls_publication_date,'LLLL d, yyyy') -- Eg: April 24, 1649
             END)
-            ELSE CAST(estc.publication_year AS INT)
-        END) AS publication_year
+            ELSE to_date(CAST(estc.publication_year AS INT),'yyyy')
+        END) AS publication_date
     FROM eebo_core ec
     INNER JOIN manifestation_ids mids ON ec.eebo_tcp_id = mids.manifestation_id
     INNER JOIN edition_mapping em USING(manifestation_id_i)
@@ -175,19 +175,26 @@ edition_years = materialise_s3_if_not_exists(
     SELECT edition_id_i,
         (CASE
             WHEN publication_year IS NULL AND ec.ecco_date_start != 0 -- when estc_core doesn't have data
-            THEN CAST(SUBSTRING(CAST(ec.ecco_date_start AS INT),1,4) AS INT) -- Eg: 1.7580101E7 -> 17580101 -> "1758" -> 1758
+            THEN to_date(SUBSTRING(CAST(ec.ecco_date_start AS INT),1,4),'yyyy') -- Eg: 1.7580101E7 -> 17580101 -> "1758" -> date(1758-01-01)
             WHEN publication_year IS NULL AND ec.ecco_date_start == 0 -- Don't record 0 years  
             THEN NULL
-            ELSE CAST(estc.publication_year AS INT)
-        END) AS publication_year
+            ELSE to_date(CAST(estc.publication_year AS INT),'yyyy')
+        END) AS publication_date
     FROM ecco_core ec
     INNER JOIN manifestation_ids mids ON ec.ecco_id = mids.manifestation_id
     INNER JOIN edition_mapping em USING(manifestation_id_i)
     INNER JOIN edition_ids eids USING(edition_id_i)
     LEFT JOIN estc_core estc ON eids.edition_id = estc.estc_id
+    
+    UNION 
+                 
+    SELECT edition_id_i, issue_start_date AS publication_date
+    FROM newspapers_core nc
+    INNER JOIN manifestation_ids mids ON nc.article_id = mids.manifestation_id
+    INNER JOIN edition_mapping em USING(manifestation_id_i)
     """),
     bucket=processed_bucket
-)
+)#%%
 #%%[markdown]
 # For each work find the earliest year of publication based on the editions
 #%%
