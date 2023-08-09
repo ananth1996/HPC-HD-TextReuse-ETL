@@ -194,6 +194,7 @@ def materialise_with_int_id(fname:str,df:DataFrame,col_name:str,id_col_name:str,
         bucket (str): The bucket where to store the data
         keep_id_mapping(bool): Whether to keep the INT id mapping file. Defaults to True
         id_fname(str): Optional. The name of id mapping file. Defaults to None.
+        drop_col(bool): Optional. Whether to drop col_name from resulting dataframe. Defaults to True.
 
     Returns:
         DataFrame: The dataframe with a new column with INT ids
