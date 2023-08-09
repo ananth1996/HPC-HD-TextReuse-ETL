@@ -254,15 +254,15 @@ textreuse_earliest_publication_date = materialise_s3_if_not_exists(
 # ## Load clusters
 #%%
 # load the clusters found from the Chinese Whispers algorithm 
-clusters = get_s3("clusters",bucket=processed_bucket)
+clusters = get_s3("clusters_counts_100",bucket=processed_bucket,table_name="clusters")
 #%%
 # create row numbers which are the defrag_piece_id
 clustered_defrag_pieces = materialise_s3_if_not_exists(
      fname="clustered_defrag_pieces",
     df=spark.sql("""
     SELECT
-    (row_number() OVER (ORDER BY monotonically_increasing_id())) AS piece_id, 
-    cluster AS cluster_id 
+    piece_id, 
+    cluster_id 
     FROM clusters"""),
     bucket=processed_bucket
 )
@@ -279,13 +279,13 @@ earliest_textreuse_by_cluster = materialise_s3_if_not_exists(
     SELECT 
         cluster_id, 
         trs_id,
-        publication_year,
-        MIN(publication_year) OVER (PARTITION BY cluster_id) AS min_publication_year
+        publication_date,
+        MIN(publication_date) OVER (PARTITION BY cluster_id) AS min_publication_date
     FROM clustered_defrag_pieces cdp  
     INNER JOIN defrag_pieces dp USING (piece_id)
-    INNER JOIN textreuse_earliest_publication_year tsepy USING (trs_id)
+    INNER JOIN textreuse_earliest_publication_date USING (trs_id)
     )
-    WHERE publication_year=min_publication_year
+    WHERE publication_date=min_publication_date
     """),
     bucket=processed_bucket
 )
@@ -303,19 +303,19 @@ earliest_work_and_pieces_by_cluster = materialise_s3_if_not_exists(
         cluster_id,
         work_id_i,
         piece_id,
-        w.publication_year AS publication_year_work,
-        t.publication_year AS publication_year_text, 
-        MIN(w.publication_year) OVER (PARTITION BY cluster_id) AS min_publication_year_work, 
-        MIN(t.publication_year) OVER (PARTITION BY cluster_id, work_id_i) AS min_publication_year_text
+        w.publication_date AS publication_date_work,
+        t.publication_date AS publication_date_text, 
+        MIN(w.publication_date) OVER (PARTITION BY cluster_id) AS min_publication_date_work, 
+        MIN(t.publication_date) OVER (PARTITION BY cluster_id, work_id_i) AS min_publication_date_text
     FROM clustered_defrag_pieces cdp
     INNER JOIN defrag_pieces dp USING (piece_id)
     INNER JOIN textreuse_work_mapping twm USING (trs_id)
-    INNER JOIN work_earliest_publication_year w USING (work_id_i)
-    INNER JOIN textreuse_earliest_publication_year t USING (trs_id)
+    INNER JOIN work_earliest_publication_date w USING (work_id_i)
+    INNER JOIN textreuse_earliest_publication_date t USING (trs_id)
     )
     WHERE 
-        publication_year_work=min_publication_year_work AND -- earliest work in cluster
-        publication_year_text=min_publication_year_text -- earliest text in earliest work in cluster
+        publication_date_work=min_publication_date_work AND -- earliest work in cluster
+        publication_date_text=min_publication_date_text -- earliest text in earliest work in cluster
     """),
     bucket=processed_bucket
 )
