@@ -18,6 +18,18 @@ else:
 textreuses = get_s3("textreuses",processed_bucket)
 textreuse_ids = get_s3("textreuse_ids",processed_bucket)
 ecco_core = get_s3("ecco_core",raw_bucket)
+textreuse_sources = get_s3("textreuse_sources",raw_bucket)
+#%%
+textreuse_source_lengths = materialise_s3_if_not_exists(
+    fname = "textreuse_source_lengths",
+    df =spark.sql("""
+		SELECT /*+ BROADCAST(ti) */
+		trs_id, LENGTH(text) as text_length
+		FROM textreuse_sources ts
+		INNER JOIN textreuse_ids ti ON ti.text_name = ts.doc_id
+		"""),
+    bucket=processed_bucket
+)
 #%%
 coverages = materialise_s3(
     fname="coverages", 
