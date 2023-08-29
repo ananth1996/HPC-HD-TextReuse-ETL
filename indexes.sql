@@ -66,7 +66,7 @@ ADD PRIMARY KEY (`actor_id`);
 
 ALTER TABLE `estc_actor_links`
 ADD INDEX IF NOT EXISTS `estc_id` (`estc_id`),
-ADD INDEX IF NOT EXISTS `actor_id` (`actor_id`)
+ADD INDEX IF NOT EXISTS `actor_id` (`actor_id`),
 ADD INDEX IF NOT EXISTS `actor_name_primary` (`actor_name_primary`(575));
 
 -- Data Indices 
