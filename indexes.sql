@@ -46,6 +46,28 @@ ADD PRIMARY KEY (`work_id_i`);
 ALTER TABLE `textreuse_earliest_publication_year`
 ADD PRIMARY KEY (`trs_id`);
 
+-- raw tables 
+
+ALTER TABLE `estc_core`
+ADD PRIMARY KEY (`estc_id`),
+ADD INDEX IF NOT EXISTS `work_id` (`work_id`(575));
+
+ALTER TABLE `ecco_core`
+ADD PRIMARY KEY (`ecco_id`),
+ADD INDEX IF NOT EXISTS `estc_id` (`estc_id`);
+
+ALTER TABLE `eebo_core`
+ADD INDEX IF NOT EXISTS `eebo_id` (`eebo_id`),
+ADD INDEX IF NOT EXISTS `eebo_tcp_id` (`eebo_tcp_id`),
+ADD INDEX IF NOT EXISTS `estc_id` (`estc_id`);
+
+ALTER TABLE `estc_actors`
+ADD PRIMARY KEY (`actor_id`);
+
+ALTER TABLE `estc_actor_links`
+ADD INDEX IF NOT EXISTS `estc_id` (`estc_id`),
+ADD INDEX IF NOT EXISTS `actor_id` (`actor_id`)
+ADD INDEX IF NOT EXISTS `actor_name_primary` (`actor_name_primary`(575));
 
 -- Data Indices 
 ALTER TABLE `defrag_pieces`
