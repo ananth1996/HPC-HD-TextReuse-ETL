@@ -36,14 +36,14 @@ ALTER TABLE `edition_mapping`
 ADD INDEX IF NOT EXISTS `manifestation_id_i` (`manifestation_id_i`),
 ADD INDEX IF NOT EXISTS `edition_id_i` (`edition_id_i`);
 
-ALTER TABLE `edition_publication_year`
+ALTER TABLE `edition_publication_date`
 -- There might be editions with several possible publication dates
-ADD INDEX IF NOT EXISTS `edition_covering` (`edition_id_i`,`publication_year`);
+ADD INDEX IF NOT EXISTS `edition_covering` (`edition_id_i`,`publication_date`);
 
-ALTER TABLE `work_earliest_publication_year`
+ALTER TABLE `work_earliest_publication_date`
 ADD PRIMARY KEY (`work_id_i`);
 
-ALTER TABLE `textreuse_earliest_publication_year`
+ALTER TABLE `textreuse_earliest_publication_date`
 ADD PRIMARY KEY (`trs_id`);
 
 ALTER TABLE `textreuse_source_lengths`
