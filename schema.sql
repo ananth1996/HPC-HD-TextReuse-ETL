@@ -307,7 +307,7 @@ CREATE TABLE IF NOT EXISTS `source_piece_statistics_denorm` (
 )ENGINE=Aria PAGE_CHECKSUM=0 TRANSACTIONAL=0;
 
 
-CREATE TABLE IS NOT EXISTS `coverages` (
+CREATE TABLE IF NOT EXISTS `coverages` (
     `trs1_id` int(11) unsigned NOT NULL,
     `t1_reuses` int(11) unsigned DEFAULT NULL,
     `reuse_t1_t2` int(11) unsigned DEFAULT NULL,
