@@ -46,6 +46,9 @@ ADD PRIMARY KEY (`work_id_i`);
 ALTER TABLE `textreuse_earliest_publication_year`
 ADD PRIMARY KEY (`trs_id`);
 
+ALTER TABLE `textreuse_source_lengths`
+ADD PRIMARY KEY (`trs_id`);
+
 -- raw tables 
 
 ALTER TABLE `estc_core`
@@ -68,6 +71,9 @@ ALTER TABLE `estc_actor_links`
 ADD INDEX IF NOT EXISTS `estc_id` (`estc_id`),
 ADD INDEX IF NOT EXISTS `actor_id` (`actor_id`),
 ADD INDEX IF NOT EXISTS `actor_name_primary` (`actor_name_primary`(575));
+
+ALTER TABLE `newspapers_core`
+ADD PRIMARY KEY (`article_id`);
 
 -- Data Indices 
 ALTER TABLE `defrag_pieces`
@@ -92,6 +98,10 @@ ADD INDEX IF NOT EXISTS `cluster_composite1` (`cluster_id`,`piece_id`),
 ADD INDEX IF NOT EXISTS `cluster_composite2` (`cluster_id`,`work_id_i`),
 ADD INDEX IF NOT EXISTS `cluster_covering` (`piece_id`,`cluster_id`,`work_id_i`);
 
-ALTER TABLE reception_edges_denorm
+ALTER TABLE `reception_edges_denorm`
 ADD INDEX IF NOT EXISTS `src_trs_id` (`src_trs_id`),
 ADD INDEX IF NOT EXISTS `dst_trs_id` (`dst_trs_id`);
+
+ALTER TABLE `coverages`
+ADD INDEX IF NOT EXISTS `trs1_composite` (`trs1_id`,`trs2_id`),
+ADD INDEX IF NOT EXISTS `trs2_composite` (`trs2_id`,`trs1_id`);

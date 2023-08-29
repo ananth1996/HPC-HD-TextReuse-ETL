@@ -48,24 +48,29 @@ CREATE TABLE IF NOT EXISTS `edition_mapping`(
     `edition_id_i` int(11) unsigned NOT NULL
 ) ENGINE=Aria PAGE_CHECKSUM=0 TRANSACTIONAL=0;
 
-CREATE TABLE IF NOT EXISTS `edition_publication_year` (
+CREATE TABLE IF NOT EXISTS `edition_publication_date` (
     `edition_id_i` int(11) unsigned NOT NULL,
-    `publication_year` int(4) unsigned DEFAULT NULL
+    `publication_date` date DEFAULT NULL
 )ENGINE=Aria PAGE_CHECKSUM=0 TRANSACTIONAL=0;
 
-CREATE TABLE IF NOT EXISTS `work_earliest_publication_year` (
+CREATE TABLE IF NOT EXISTS `work_earliest_publication_date` (
     `work_id_i` int(11) unsigned NOT NULL,
-    `publication_year` int(4) DEFAULT NULL
+    `publication_date` date DEFAULT NULL
 )ENGINE=Aria PAGE_CHECKSUM=0 TRANSACTIONAL=0;
 
-CREATE TABLE IF NOT EXISTS `textreuse_earliest_publication_year` (
+CREATE TABLE IF NOT EXISTS `textreuse_earliest_publication_date` (
     `trs_id` int(11) unsigned NOT NULL,
-    `publication_year` int(4) DEFAULT NULL
+    `publication_date` date DEFAULT NULL
 )ENGINE=Aria PAGE_CHECKSUM=0 TRANSACTIONAL=0;
 
 CREATE TABLE IF NOT EXISTS `edition_authors` (
     `edition_id_i` int(11) unsigned NOT NULL,
     `actor_id_i` int(11) unsigned DEFAULT NULL
+)ENGINE=Aria PAGE_CHECKSUM=0 TRANSACTIONAL=0;
+
+CREATE TABLE IF NOT EXISTS `textreuse_source_lengths` (
+    `trs_id` int(11) unsigned NOT NULL,
+    `textlength` int(11) unsigned DEFAULT NULL
 )ENGINE=Aria PAGE_CHECKSUM=0 TRANSACTIONAL=0;
 
 -- raw metadata tables 
@@ -231,6 +236,22 @@ CREATE TABLE `estc_actor_links` (
   `primary_publisher` tinyint(4) DEFAULT NULL
 ) ENGINE=Aria DEFAULT CHARSET=utf8mb4 PAGE_CHECKSUM=0 TRANSACTIONAL=0;
 
+
+CREATE TABLE `newspapers_core` (
+    `article_id` varchar(38) NOT NULL,
+    `octavo_newspaper_id` varchar(8) DEFAULT NULL,
+    `issue_id` varchar(8) DEFAULT NULL,  
+    `newspaper_title` varchar(145) DEFAULT NULL,
+    `vol_no` varchar(3) DEFAULT NULL,
+    `issue_no` varchar(10) DEFAULT NULL,
+    `thematic_collection` varchar(145) DEFAULT NULL,
+    `octavo_collection` varchar(7) DEFAULT NULL,
+    `issue_date_start` varchar(10) DEFAULT NULL,
+    `issue_date_end` varchar(10) DEFAULT NULL, 
+    `original_issue_date` varchar(103) DEFAULT NULL,
+    `issue_start_date` date DEFAULT NULL,
+    `issue_end_date` date
+)ENGINE=Aria PAGE_CHECKSUM=0 TRANSACTIONAL=0;
 -- Data Tables 
 
 CREATE TABLE IF NOT EXISTS `defrag_pieces` (
@@ -283,4 +304,18 @@ CREATE TABLE IF NOT EXISTS `source_piece_statistics_denorm` (
     `trs_start` int(11) unsigned NOT NULL,
     `trs_end` int(11) unsigned NOT NULL,
     `edition_id_i` int(11) unsigned NOT NULL
+)ENGINE=Aria PAGE_CHECKSUM=0 TRANSACTIONAL=0;
+
+
+CREATE TABLE IS NOT EXISTS `coverages` (
+    `trs1_id` int(11) unsigned NOT NULL,
+    `t1_reuses` int(11) unsigned DEFAULT NULL,
+    `reuse_t1_t2` int(11) unsigned DEFAULT NULL,
+    `t1_length` int(11) unsigned DEFAULT NULL,
+    `coverage_t1_t2` double unsigned DEFAULT NULL,
+    `trs2_id` int(11) unsigned NOT NULL,
+    `t2_reuses` int(11) unsigned DEFAULT NULL,
+    `reuse_t2_t1` int(11) unsigned DEFAULT NULL,
+    `t2_length` int(11) unsigned DEFAULT NULL,
+    `coverage_t2_t1` double unsigned DEFAULT NULL
 )ENGINE=Aria PAGE_CHECKSUM=0 TRANSACTIONAL=0;

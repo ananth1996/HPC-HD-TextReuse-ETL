@@ -24,16 +24,17 @@ metadata_tables = [
     ["textreuse_edition_mapping",processed_bucket,],
     ["work_mapping",processed_bucket,],
     ["edition_mapping",processed_bucket,],
-    ["edition_publication_year",processed_bucket,],
-    ["work_earliest_publication_year",processed_bucket,],
-    ["textreuse_earliest_publication_year",processed_bucket,],
+    ["edition_publication_date",processed_bucket,],
+    ["work_earliest_publication_date",processed_bucket,],
+    ["textreuse_earliest_publication_date",processed_bucket,],
+    ["textreuse_source_lengths",processed_bucket]
     ["edition_authors",processed_bucket,],
-    # ["estc_core",raw_bucket,],
-    # ["ecco_core",raw_bucket,],
-    # ["eebo_core",raw_bucket,],
-    # ["eebo_tcp_core",raw_bucket,],
-    # ["estc_actor_links",raw_bucket,],
-    # ["estc_actors",raw_bucket,],
+    ["estc_core",raw_bucket,],
+    ["ecco_core",raw_bucket,],
+    ["eebo_core",raw_bucket,],
+    ["newspapers_core",raw_bucket,],
+    ["estc_actor_links",raw_bucket,],
+    ["estc_actors",raw_bucket,],
 ]
 for table,bucket in metadata_tables:
     df =  get_s3(table,bucket)
@@ -60,6 +61,7 @@ data_tables = [
     # ["source_piece_statistics",processed_bucket,],
     ["reception_edges_denorm",denorm_bucket,],
     ["source_piece_statistics_denorm",denorm_bucket,],
+    ["coverages",processed_bucket,]
 ]
 for table,bucket in data_tables:
     df =  get_s3(table,bucket)
