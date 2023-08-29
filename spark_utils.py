@@ -240,8 +240,8 @@ def materialise_with_int_id(fname:str,df:DataFrame,col_name:str,id_col_name:str,
 with open(project_root/"database.toml") as fp:
     db_options = toml.load(fp)
 
-def jdbc_opts(conn,db_options:dict=db_options):
-    opts = db_options["mariadb"]
+def jdbc_opts(conn,database:str,db_options:dict=db_options):
+    opts = db_options[database]
     return (conn
         .format("jdbc")
         .option("driver", opts["driver"])

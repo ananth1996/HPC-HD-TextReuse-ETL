@@ -40,7 +40,7 @@ for table,bucket in metadata_tables:
     df =  get_s3(table,bucket)
     print(f"Loading {table=}\n{df}")
     (
-        jdbc_opts(df.write).
+        jdbc_opts(df.write,database="mariadbNewspapers").
         option("createTableOptions","ENGINE=ARIA TRANSACTIONAL=0 PAGE_CHECKSUM=0")
         .option("dbtable", table) 
         .option("truncate", "true")
@@ -67,7 +67,7 @@ for table,bucket in data_tables:
     df =  get_s3(table,bucket)
     print(f"Loading {table=}\n {df}")
     (
-        jdbc_opts(df.write).
+        jdbc_opts(df.write,database="maraidbNewspapers").
         option("createTableOptions","ENGINE=ARIA TRANSACTIONAL=0 PAGE_CHECKSUM=0")
         .option("dbtable", table) 
         .option("truncate", "true")
