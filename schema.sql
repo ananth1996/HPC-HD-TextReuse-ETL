@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS `edition_ids`(
 
 CREATE TABLE IF NOT EXISTS `work_ids`(
     `work_id_i` int(11) unsigned NOT NULL,
-    `work_id` varchar(100)
+    `work_id` varchar(2858)
 ) ENGINE=Aria PAGE_CHECKSUM=0 TRANSACTIONAL=0;
 
 CREATE TABLE IF NOT EXISTS `actor_ids`(
@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS `edition_authors` (
 
 CREATE TABLE IF NOT EXISTS `textreuse_source_lengths` (
     `trs_id` int(11) unsigned NOT NULL,
-    `textlength` int(11) unsigned DEFAULT NULL
+    `text_length` int(11) unsigned DEFAULT NULL
 )ENGINE=Aria PAGE_CHECKSUM=0 TRANSACTIONAL=0;
 
 -- raw metadata tables 
