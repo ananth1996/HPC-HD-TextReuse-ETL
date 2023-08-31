@@ -38,7 +38,7 @@ if __name__ == "__main__":
     schema = "CREATE TABLE IF NOT EXISTS `non_source_pieces` (`cluster_id` int(11) unsigned NOT NULL,`piece_id` bigint(20) unsigned NOT NULL)ENGINE=Aria PAGE_CHECKSUM=0 TRANSACTIONAL=0;"
     indexes = "ALTER TABLE `non_source_pieces` ADD UNIQUE KEY `cluster_covering` (`cluster_id`,`piece_id`),ADD UNIQUE KEY `piece_covering` (`piece_id`,`cluster_id`);"
 
-    conn = get_sqlalchemy_connection()
+    conn = get_sqlalchemy_connect(version="mariadbNewspapers")
     # Remove any table that exists
     conn.execute(text("DROP TABLE IF EXISTS `non_source_pieces`;"))
     conn.execute(text(schema))
