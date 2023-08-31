@@ -44,7 +44,7 @@ if __name__ == "__main__":
     conn.execute(text(schema))
     print("Schema Created")
     (
-        jdbc_opts(non_source_pieces.write)
+        jdbc_opts(non_source_pieces.write,database="mariadbNewspapers")
         .option("dbtable", "non_source_pieces") 
         .option("truncate", "true")
         .mode("overwrite")
