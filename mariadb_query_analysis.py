@@ -90,13 +90,13 @@ INNER JOIN defrag_pieces dp2 ON nsp.piece_id = dp2.piece_id
 )
 SELECT COUNT(*) FROM final_result""")
 #%%
-df = pd.read_csv("./data/num_reception_edges.csv")
+df = pd.read_csv("./data/num_reception_edges_newspapers.csv")
 manifestation_ids = df.manifestation_id.values
 num_reception_edges = df.num_reception_edges.values
 # quantile = np.quantile(num_reception_edges,[0,0.25,0.5,0.75,1])
 q = np.linspace(0,1,5)
 _quantile = np.quantile(num_reception_edges,q)
-seed = 42
+seed = 2
 num_samples = 100
 _num_samples = int(num_samples/(len(q)-1))
 rng = np.random.default_rng(seed=seed)
@@ -115,11 +115,12 @@ for i,(low,high) in enumerate(zip(_quantile[:-1],_quantile[1:])):
 samples_df = pd.DataFrame.from_dict(samples).melt(var_name="quantile",value_name="doc_id")
 sample_results_df = pd.DataFrame.from_dict(sample_results).melt(var_name="quantile",value_name="ground_truth")
 samples_df = samples_df.join(sample_results_df["ground_truth"])
+print("Maximum Number of rows:",sample_results_df.ground_truth.max())
 #%%
 dfs = []
 doc_id_pattern=re.compile("manifestation_id='(.*?)'")
 for query,query_type in tqdm(zip([denorm_query,intermediate_query,standard_query],["denorm","intermediate","standard"]),total=3):   
-    conn = get_sqlalchemy_connection()
+    conn = get_sqlalchemy_connect(version="mariadbNewspapers")
     conn.execute(text("SET SESSION profiling=0;"))
     # conn.execute(text("FLUSH NO_WRITE_TO_BINLOG TABLES reception_edges_denorm,non_source_pieces,manifestation_ids,earliest_work_and_pieces_by_cluster,defrag_pieces,clustered_defrag_piecess;"))
     conn.execute(text("RESET QUERY CACHE;"))
