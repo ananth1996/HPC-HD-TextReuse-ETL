@@ -8,7 +8,7 @@ import logging
 from functools import partial
 from pyspark.sql.types import *
 from etl_textreuse.spark_utils import *
-project_root = Path(__file__).parent.resolve()
+project_root = Path(__file__).parent.parent.parent.resolve()
 import json
 from dagster import asset,  AssetKey, SourceAsset
 #%%
@@ -70,10 +70,9 @@ def process_partition(iterator,fname:str,cred:dict):
 
 zip_file = SourceAsset(key=AssetKey("raw_texreuses_zip"),description="The raw zip files with textreuse data")
 
-
 @asset(deps=[zip_file],description="The parquet file of raw textreuses")
 def raw_textreuses() -> None:
-    fname = "newspapers_run_samples.zip"
+    fname = "newspapers_run_sample.zip"
     num_partitions = 200
     # load credentials for Pouta s3 storage
     with open(project_root/"s3credentials.toml","r") as fp:
@@ -122,3 +121,70 @@ def raw_textreuses() -> None:
     # write to the output file
     df1.write.mode("overwrite").parquet(output_fname)
 
+
+@asset(deps=[raw_textreuses],description="The INT ids for textreuse sources")
+def textreuse_ids() -> None:
+    spark = get_spark_session(project_root,application_name="textreuse_ids")
+    # load the 
+    get_s3(spark,"raw_textreuses",processed_bucket,table_name="textreuses_raw")
+    textreuse_ids = materialise_row_numbers(
+        spark,
+        fname = "textreuse_ids",
+
+
+
+
+        df = spark.sql("""   
+        SELECT * FROM (
+            SELECT 
+                text1_id AS text_name,
+                SUBSTRING_INDEX(text1_id ,".",1) as manifestation_id,
+                (CASE 
+                    WHEN LOCATE(".",text1_id) > 0 
+                    THEN SUBSTRING_INDEX(text1_id ,".",-1)
+                    ELSE NULL
+                END) AS structure_name
+            FROM textreuses_raw
+            UNION
+            SELECT 
+                text2_id AS text_name, 
+                SUBSTRING_INDEX(text2_id,".",1) AS manifestation_id,
+                (CASE 
+                    WHEN LOCATE(".",text2_id) > 0 
+                    THEN SUBSTRING_INDEX(text2_id ,".",-1)
+                    ELSE NULL
+                END) AS structure_name
+            FROM textreuses_raw
+        ) 
+        ORDER BY manifestation_id,structure_name"""),
+        col_name="trs_id",
+        bucket = processed_bucket)
+
+@asset(deps=[raw_textreuses,textreuse_ids],description="The textreuses with ids mapped")
+def textreuses() -> None:
+    spark = get_spark_session(project_root,application_name="textreuses")
+    # load the required files
+    get_s3(spark,"raw_textreuses",processed_bucket,table_name="textreuses_raw")
+    get_s3(spark,"textreuse_ids",processed_bucket)
+
+    textreuses = materialise_row_numbers(
+        spark,
+        fname="textreuses",
+        df=spark.sql("""
+            SELECT 
+                ti1.trs_id AS trs1_id,
+                text1_text_start AS trs1_start,
+                text1_text_end AS trs1_end,
+                ti2.trs_id AS trs2_id,
+                text2_text_start AS trs2_start,
+                text2_text_end AS trs2_end,
+                align_length,
+                positives_percent
+            FROM textreuses_raw t
+            LEFT JOIN textreuse_ids ti1 ON t.text1_id = ti1.text_name
+            LEFT JOIN textreuse_ids ti2 ON t.text2_id = ti2.text_name
+            ORDER BY trs1_id,trs2_id
+            """),
+        col_name="textreuse_id",
+        bucket=processed_bucket
+    )
