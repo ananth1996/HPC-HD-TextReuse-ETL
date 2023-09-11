@@ -13,3 +13,5 @@ metastore_db/
 .vscode/
 .metals/
 .ammonite
+tmp*
+dagster_home
