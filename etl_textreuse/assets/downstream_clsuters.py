@@ -13,7 +13,7 @@ def clustered_defrag_pieces() -> Output[None]:
         project_root, application_name="clustered degrag pieces")
     get_s3(spark, "clusters_counts_0", processed_bucket,
            table_name="clusters_counts")
-    materialise_s3_if_not_exists(
+    materialise_s3(
         spark,
         fname="clustered_defrag_pieces",
         df=spark.sql("""
@@ -36,7 +36,7 @@ def earliest_textreuse_by_cluster() -> None:
     get_s3(spark, "clustered_defrag_pieces", processed_bucket)
     get_s3(spark, "defrag_pieces", processed_bucket)
     get_s3(spark, "textreuse_earliest_publication_date", processed_bucket)
-    materialise_s3_if_not_exists(
+    materialise_s3(
         spark,
         fname="earliest_textreuse_by_cluster",
         df=spark.sql("""
@@ -70,7 +70,7 @@ def earliest_work_and_pieces_by_cluster() -> None:
     get_s3(spark, "textreuse_earliest_publication_date", processed_bucket)
     get_s3(spark, "textreuse_work_mapping", processed_bucket)
     get_s3(spark, "work_earliest_publication_date", processed_bucket)
-    materialise_s3_if_not_exists(
+    materialise_s3(
         spark,
         fname="earliest_work_and_pieces_by_cluster",
         df=spark.sql("""

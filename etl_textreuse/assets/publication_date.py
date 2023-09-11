@@ -84,7 +84,7 @@ def work_earliest_publication_date() -> None :
     get_s3(spark,"edition_publication_date",processed_bucket)
     get_s3(spark,"edition_mapping",processed_bucket)
     get_s3(spark,"work_mapping",processed_bucket)
-    materialise_s3_if_not_exists(
+    materialise_s3(
         spark,
         fname="work_earliest_publication_date",
         df=spark.sql("""
@@ -101,7 +101,7 @@ def textreuse_earliest_publication_date()->None:
     spark = get_spark_session(project_root,application_name="Earliest textreuse publication date")
     get_s3(spark,"edition_publication_date",processed_bucket)
     get_s3(spark,"textreuse_edition_mapping",processed_bucket)
-    materialise_s3_if_not_exists(
+    materialise_s3(
         spark,
         fname="textreuse_earliest_publication_date",
         df=spark.sql("""
