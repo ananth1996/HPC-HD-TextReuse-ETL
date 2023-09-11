@@ -54,24 +54,3 @@ def defrag_textreuses() -> None:
         col_name="textreuse_id",
         bucket=processed_bucket
     )
-
-@asset(deps=[defrag_textreuses],description="The adjacency list for the Chinese Whispers Clustering Algorithm")
-def defrag_graph_adj_list() -> None:
-    spark = get_spark_session(project_root,application_name="degragmented adjacenc list")
-    get_s3(spark,"defrag_textreuses",processed_bucket)
-    materialise_s3(
-        spark,
-        fname="defrag_graph_adj_list",
-        df=spark.sql("""
-        WITH undirected_edges AS (
-        SELECT piece1_id-1 as piece1_id, piece2_id-1 as piece2_id FROM defrag_textreuses
-        UNION ALL
-        SELECT piece2_id-1 AS piece1_id, piece1_id-1 AS piece2_id FROM defrag_textreuses
-        )
-        SELECT /*+ REPARTITION(1)*/ collect_list(piece2_id) AS edges
-        FROM undirected_edges
-        GROUP BY piece1_id
-        ORDER BY piece1_id
-        """),
-        bucket=processed_bucket
-    )

@@ -23,8 +23,12 @@ def get_spark_session(project_root:Path,application_name:str="ETL"):
             # To account for issue with historical dates 
             # See https://docs.databricks.com/en/error-messages/inconsistent-behavior-cross-version-error-class.html#write_ancient_datetime
             .config("spark.sql.parquet.datetimeRebaseModeInWrite","CORRECTED")
+            # .config("spark.hadoop.fs.s3a.ssl.channel.mode","openssl")
             #.config('spark.ui.showConsoleProgress', 'false')
             #.config('spark.graphx.pregel.checkpointInterval','1')
+            .config("spark.driver.memory","10g")
+            .config("spark.sql.warehouse.dir","/Users/mahadeva/spark-warehouse")
+            .config("spark.hadoop.mapreduce.fileoutputcommitter.algorithm.version","2")
             .enableHiveSupport()
             .getOrCreate())
     spark.sparkContext.setLogLevel("WARN")
