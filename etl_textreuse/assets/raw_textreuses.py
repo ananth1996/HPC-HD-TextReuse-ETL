@@ -130,10 +130,6 @@ def textreuse_ids() -> None:
     textreuse_ids = materialise_row_numbers(
         spark,
         fname = "textreuse_ids",
-
-
-
-
         df = spark.sql("""   
         SELECT * FROM (
             SELECT 
