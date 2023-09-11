@@ -152,7 +152,7 @@ def textreuse_edition_mapping() -> None:
     get_s3(spark,"textreuse_ids",bucket=processed_bucket)
     get_s3(spark,"manifestation_ids",bucket=processed_bucket)
     get_s3(spark,"edition_mapping",bucket=processed_bucket)
-    materialise_s3_if_not_exists(
+    materialise_s3(
         spark,
         fname="textreuse_edition_mapping",
         df=spark.sql("""
@@ -170,7 +170,7 @@ def textreuse_work_mapping() -> None:
     get_s3(spark,"textreuse_ids",bucket=processed_bucket)
     get_s3(spark,"manifestation_ids",bucket=processed_bucket)
     get_s3(spark,"work_mapping",bucket=processed_bucket)
-    materialise_s3_if_not_exists(
+    materialise_s3(
         spark,
         fname="textreuse_work_mapping",
         df=spark.sql("""
