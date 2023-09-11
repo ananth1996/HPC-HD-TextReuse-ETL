@@ -1,6 +1,6 @@
 #%%
 from etl_textreuse.spark_utils import *
-from dagster import asset,Output, multi_asset, AssetOut,MetadataValue
+from dagster import asset,Output,MetadataValue
 from etl_textreuse.assets.upstream_metadata import ecco_core,estc_core,eebo_core,newspapers_core
 from etl_textreuse.assets.ids_and_mappings import manifestation_ids,textreuse_edition_mapping
 #%%
