@@ -38,6 +38,7 @@ def getSpark(): SparkSession = {
     spark.sparkContext.hadoopConfiguration.set("fs.s3a.secret.key",sys.env("AWS_SECRET_KEY"))
     spark.sparkContext.hadoopConfiguration.set("fs.s3a.endpoint",sys.env("AWS_ENDPOINT_URL"))
     spark.sparkContext.hadoopConfiguration.set("fs.s3a.path.style.access","true")
+    spark.sparkContext.setCheckpointDir("/Users/mahadeva/spark-checkpoint")
     spark
     
 }

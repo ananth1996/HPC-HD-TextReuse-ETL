@@ -49,8 +49,6 @@ def clusters() -> Output[None]:
   #%%
   def write_checkpoint(df: DataFrame, name: str, alter: Callable[[DataFrameWriter], DataFrameWriter] = lambda df: df):
     (alter(df.write)
-  #    .bucketBy(256, "piece_id")
-  #    .sortBy("piece_id")
     ).saveAsTable(name, mode='overwrite', format='parquet', path=f's3a://{processed_bucket}/{name}.parquet',compression='zstd')
 
   def read_checkpoint(name):
@@ -62,7 +60,7 @@ def clusters() -> Output[None]:
     )
   #%%
   #TODO have a way to feed in the current iteration count from file
-  #TODO allows it to resume from previous iteration
+  #TODO allow it to resume from previous iteration
   iter = 0
   adjacency_list = read_checkpoint("adjacency_list")
   if iter == 0:
