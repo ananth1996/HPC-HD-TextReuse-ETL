@@ -1,9 +1,8 @@
 # %%
 from etl_textreuse.assets.orig_textreuses import orig_pieces, orig_textreuses
 from etl_textreuse.spark_utils import *
-from dagster import asset, multi_asset, AssetOut, AssetKey
+from dagster import asset
 import subprocess
-from pathlib import Path
 # %%
 
 

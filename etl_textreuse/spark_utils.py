@@ -11,7 +11,7 @@ from pyspark.sql.types import StructField, StructType, LongType
 # the buckets
 processed_bucket = "textreuse-dagster-test"
 raw_bucket = "textreuse-raw-data"
-denorm_bucket = "textreuse-new-denormalized-data"
+denorm_bucket = "textreuse-dagster-test"
 
 def get_spark_session(project_root:Path,application_name:str="ETL"):
     os.environ['PYSPARK_PYTHON'] = str(project_root/".venv/bin/python")
