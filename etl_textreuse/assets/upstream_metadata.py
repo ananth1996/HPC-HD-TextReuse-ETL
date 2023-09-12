@@ -6,8 +6,9 @@ from dagster import asset,AssetKey, SourceAsset
 ecco_core = SourceAsset(key=AssetKey("ecco_core"),description="ECCO Core metadata",group_name="metadata")
 eebo_core = SourceAsset(key=AssetKey("eebo_core"),description="EEBO Core metadata",group_name="metadata")
 estc_core = SourceAsset(key=AssetKey("estc_core"),description="ESTC Core metadata",group_name="metadata")
+estc_actors = SourceAsset(key=AssetKey("estc_actors"),description="Actros in the ESTC metadata",group_name="metadata")
+estc_actor_links = SourceAsset(key=AssetKey("estc_actor_links"),description="The links between ESTC and Actors",group_name="metadata")
 newspapers_raw = SourceAsset(key=AssetKey("bl_newspapers_meta"),description="Raw newspapres metadata",group_name="metadata")
-
 @asset(
         deps=[newspapers_raw],
         description="Newspapers Core Metadata",
