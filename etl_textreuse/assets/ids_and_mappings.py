@@ -10,9 +10,9 @@ from etl_textreuse.assets.raw_textreuses import textreuse_ids
 
 
 @asset(
-        deps=[ecco_core, eebo_core, newspapers_core],
-        description="The text manifestations used in textreuses",
-        group_name="metadata"
+    deps=[ecco_core, eebo_core, newspapers_core],
+    description="The text manifestations used in textreuses",
+    group_name="metadata"
 )
 def manifestation_ids() -> Output[None]:
     spark = get_spark_session(
@@ -156,7 +156,11 @@ def work_ids_and_mapping():
     return Output(None), Output(None, metadata={"rows": works_count})
 
 
-@asset(deps=[textreuse_ids, "edition_mapping", manifestation_ids], description="Mapping between textreuses and editions", group_name="textreuse_metadata_link")
+@asset(
+    deps=[textreuse_ids, "edition_mapping", manifestation_ids],
+    description="Mapping between textreuses and editions",
+    group_name="metadata"
+)
 def textreuse_edition_mapping() -> None:
     spark = get_spark_session(
         project_root, application_name="textreuse edition mapping")
@@ -179,7 +183,7 @@ def textreuse_edition_mapping() -> None:
 @asset(
     deps=[textreuse_ids, manifestation_ids, "work_mapping"],
     description="Mapping between textreuses and works",
-    group_name="textreuse_metadata_link"
+    group_name="metadata"
 )
 def textreuse_work_mapping() -> None:
     spark = get_spark_session(

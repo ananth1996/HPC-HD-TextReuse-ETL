@@ -111,7 +111,7 @@ def work_earliest_publication_date() -> None:
 @asset(
         deps=[textreuse_edition_mapping, edition_publication_date], 
         description="The earliest publication date of a textreuse source",
-        group_name="textreuse_downstream_metadata_link"
+        group_name="downstream_metadata"
 )
 def textreuse_earliest_publication_date() -> None:
     spark = get_spark_session(
