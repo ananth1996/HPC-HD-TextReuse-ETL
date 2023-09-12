@@ -1,14 +1,18 @@
 #%%
-from etl_textreuse.spark_utils import *
+from ..spark_utils import *
 from dagster import asset,AssetKey, SourceAsset
 #%%
 
-ecco_core = SourceAsset(key=AssetKey("ecco_core"),description="ECCO Core metadata")
-eebo_core = SourceAsset(key=AssetKey("eebo_core"),description="EEBO Core metadata")
-estc_core = SourceAsset(key=AssetKey("estc_core"),description="ESTC Core metadata")
-newspapers_raw = SourceAsset(key=AssetKey("bl_newspapers_meta"),description="Raw newspapres metadata")
+ecco_core = SourceAsset(key=AssetKey("ecco_core"),description="ECCO Core metadata",group_name="metadata")
+eebo_core = SourceAsset(key=AssetKey("eebo_core"),description="EEBO Core metadata",group_name="metadata")
+estc_core = SourceAsset(key=AssetKey("estc_core"),description="ESTC Core metadata",group_name="metadata")
+newspapers_raw = SourceAsset(key=AssetKey("bl_newspapers_meta"),description="Raw newspapres metadata",group_name="metadata")
 
-@asset(deps=[newspapers_raw],description="Newspapers Core Metadata")
+@asset(
+        deps=[newspapers_raw],
+        description="Newspapers Core Metadata",
+        group_name="metadata"
+)
 def newspapers_core() -> None:
     newspapers_raw_csv = f"s3a://{raw_bucket}/bl_newspapers_meta.csv"
     spark = get_spark_session(project_root,application_name="Newspapers Core")

@@ -1,21 +1,27 @@
-#%%
+# %%
 from etl_textreuse.spark_utils import *
-from dagster import asset,Output,MetadataValue
-from etl_textreuse.assets.upstream_metadata import ecco_core,estc_core,eebo_core,newspapers_core
-from etl_textreuse.assets.ids_and_mappings import manifestation_ids,textreuse_edition_mapping
-#%%
+from dagster import asset, Output, MetadataValue
+from etl_textreuse.assets.upstream_metadata import ecco_core, estc_core, eebo_core, newspapers_core
+from etl_textreuse.assets.ids_and_mappings import manifestation_ids, textreuse_edition_mapping
+# %%
 
 
-@asset(deps=[estc_core,ecco_core,eebo_core,newspapers_core,manifestation_ids,"edition_mapping","edition_ids"],description="The earliest publication dates of editions")
+@asset(
+    deps=[estc_core, ecco_core, eebo_core, newspapers_core,
+          manifestation_ids, "edition_mapping", "edition_ids"],
+    description="The earliest publication dates of editions",
+    group_name="downstream_metadata"
+)
 def edition_publication_date() -> Output[None]:
-    spark = get_spark_session(project_root,application_name="Edition publication dates")
-    get_s3(spark,"estc_core",raw_bucket)
-    get_s3(spark,"eebo_core",raw_bucket)
-    get_s3(spark,"ecco_core",raw_bucket)
-    get_s3(spark,"newspapers_core",raw_bucket)
-    get_s3(spark,"manifestation_ids",processed_bucket)
-    get_s3(spark,"edition_ids",processed_bucket)
-    get_s3(spark,"edition_mapping",processed_bucket)
+    spark = get_spark_session(
+        project_root, application_name="Edition publication dates")
+    get_s3(spark, "estc_core", raw_bucket)
+    get_s3(spark, "eebo_core", raw_bucket)
+    get_s3(spark, "ecco_core", raw_bucket)
+    get_s3(spark, "newspapers_core", raw_bucket)
+    get_s3(spark, "manifestation_ids", processed_bucket)
+    get_s3(spark, "edition_ids", processed_bucket)
+    get_s3(spark, "edition_mapping", processed_bucket)
     materialise_s3(
         spark,
         fname="edition_publication_date",
@@ -75,15 +81,20 @@ def edition_publication_date() -> Output[None]:
         .to_markdown()
     )
 
-    return Output(None,metadata={"earliest years count":MetadataValue.md(year_count_desc)})
-    
+    return Output(None, metadata={"earliest years count": MetadataValue.md(year_count_desc)})
 
-@asset(deps=[edition_publication_date,"edition_mapping","work_mapping"],description="The earliest publication date of a work")
-def work_earliest_publication_date() -> None :
-    spark = get_spark_session(project_root,application_name="Earliest work publication date")
-    get_s3(spark,"edition_publication_date",processed_bucket)
-    get_s3(spark,"edition_mapping",processed_bucket)
-    get_s3(spark,"work_mapping",processed_bucket)
+
+@asset(
+    deps=[edition_publication_date, "edition_mapping", "work_mapping"],
+    description="The earliest publication date of a work",
+    group_name="downstream_metadata"
+)
+def work_earliest_publication_date() -> None:
+    spark = get_spark_session(
+        project_root, application_name="Earliest work publication date")
+    get_s3(spark, "edition_publication_date", processed_bucket)
+    get_s3(spark, "edition_mapping", processed_bucket)
+    get_s3(spark, "work_mapping", processed_bucket)
     materialise_s3(
         spark,
         fname="work_earliest_publication_date",
@@ -96,11 +107,17 @@ def work_earliest_publication_date() -> None :
         bucket=processed_bucket
     )
 
-@asset(deps=[textreuse_edition_mapping,edition_publication_date],description="The earliest publication date of a textreuse source")
-def textreuse_earliest_publication_date()->None:
-    spark = get_spark_session(project_root,application_name="Earliest textreuse publication date")
-    get_s3(spark,"edition_publication_date",processed_bucket)
-    get_s3(spark,"textreuse_edition_mapping",processed_bucket)
+
+@asset(
+        deps=[textreuse_edition_mapping, edition_publication_date], 
+        description="The earliest publication date of a textreuse source",
+        group_name="textreuse_downstream_metadata_link"
+)
+def textreuse_earliest_publication_date() -> None:
+    spark = get_spark_session(
+        project_root, application_name="Earliest textreuse publication date")
+    get_s3(spark, "edition_publication_date", processed_bucket)
+    get_s3(spark, "textreuse_edition_mapping", processed_bucket)
     materialise_s3(
         spark,
         fname="textreuse_earliest_publication_date",

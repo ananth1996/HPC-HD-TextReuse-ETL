@@ -1,14 +1,19 @@
 from .raw_textreuses import textreuses
 from ..spark_utils import *
 from dagster import asset
-import logging 
+import logging
 
 logger = logging.getLogger(__name__)
 
-@asset(deps=[textreuses],description="orginal pieces of textreuse")
+
+@asset(
+    deps=[textreuses],
+    description="orginal pieces of textreuse",
+    group_name="textreuses"
+)
 def orig_pieces() -> None:
-    spark = get_spark_session(project_root,application_name="original pieces")
-    get_s3(spark,"textreuses",processed_bucket)
+    spark = get_spark_session(project_root, application_name="original pieces")
+    get_s3(spark, "textreuses", processed_bucket)
     materialise_row_numbers(
         spark,
         fname="orig_pieces",
@@ -31,11 +36,17 @@ def orig_pieces() -> None:
         col_name="piece_id",
         bucket=processed_bucket
     )
-@asset(deps=[textreuses,orig_pieces],description="The original textreuses between pieces")
+
+
+@asset(
+    deps=[textreuses, orig_pieces],
+    description="The original textreuses between pieces",
+    group_name="textreuses"
+)
 def orig_textreuses() -> None:
-    spark = get_spark_session(project_root,application_name="original pieces")
-    get_s3(spark,"textreuses",processed_bucket)
-    get_s3(spark,"orig_pieces",processed_bucket)
+    spark = get_spark_session(project_root, application_name="original pieces")
+    get_s3(spark, "textreuses", processed_bucket)
+    get_s3(spark, "orig_pieces", processed_bucket)
     materialise_s3(
         spark,
         fname="orig_textreuses",

@@ -7,7 +7,11 @@ from etl_textreuse.assets.ids_and_mappings import textreuse_work_mapping
 # %%
 
 
-@asset(deps=[clusters], description="The mapping of each defragmented piece to a unique cluster")
+@asset(
+    deps=[clusters],
+    description="The mapping of each defragmented piece to a unique cluster",
+    group_name="textreuses"
+)
 def clustered_defrag_pieces() -> Output[None]:
     spark = get_spark_session(
         project_root, application_name="clustered degrag pieces")
@@ -29,7 +33,12 @@ def clustered_defrag_pieces() -> Output[None]:
     return Output(None, metadata={"Number of Clusters": num_clusters})
 
 
-@asset(deps=[clustered_defrag_pieces, defrag_pieces, textreuse_earliest_publication_date], description="The earliest textreuse in each cluster")
+@asset(
+    deps=[clustered_defrag_pieces, defrag_pieces,
+          textreuse_earliest_publication_date],
+    description="The earliest textreuse in each cluster",
+    group_name="downstream_textreuses"
+)
 def earliest_textreuse_by_cluster() -> None:
     spark = get_spark_session(
         project_root, application_name="Earliest textreuse in cluster")
@@ -61,7 +70,12 @@ def earliest_textreuse_by_cluster() -> None:
 #    in that cluster
 
 
-@asset(deps=[clustered_defrag_pieces, textreuse_earliest_publication_date, work_earliest_publication_date, defrag_pieces])
+@asset(
+    deps=[clustered_defrag_pieces, textreuse_earliest_publication_date,
+          work_earliest_publication_date, defrag_pieces],
+    description="The earliest work and corresponding piece in each cluster",
+    group_name="downstream_textreuses"
+)
 def earliest_work_and_pieces_by_cluster() -> None:
     spark = get_spark_session(
         project_root, application_name="Earliest work and piece in cluster")

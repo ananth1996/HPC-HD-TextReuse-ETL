@@ -1,18 +1,25 @@
-#%%
+# %%
 from etl_textreuse.spark_utils import *
-from dagster import asset,Output, multi_asset, AssetOut
-from etl_textreuse.assets.upstream_metadata import ecco_core,estc_core,eebo_core,newspapers_core
+from dagster import asset, Output, multi_asset, AssetOut
+from etl_textreuse.assets.upstream_metadata import ecco_core, estc_core, eebo_core, newspapers_core
 from etl_textreuse.assets.raw_textreuses import textreuse_ids
-#%%
+# %%
 
-# Create INT ids for the manifestation ids which are 
+# Create INT ids for the manifestation ids which are
 #  ECCO and EEBO_TCP
-@asset(deps=[ecco_core,eebo_core,newspapers_core],description="The text manifestations used in textreuses")
+
+
+@asset(
+        deps=[ecco_core, eebo_core, newspapers_core],
+        description="The text manifestations used in textreuses",
+        group_name="metadata"
+)
 def manifestation_ids() -> Output[None]:
-    spark = get_spark_session(project_root,application_name="manifestation_ids")
-    get_s3(spark,"ecco_core",raw_bucket)
-    get_s3(spark,"eebo_core",raw_bucket)
-    get_s3(spark,"newspapers_core",raw_bucket)
+    spark = get_spark_session(
+        project_root, application_name="manifestation_ids")
+    get_s3(spark, "ecco_core", raw_bucket)
+    get_s3(spark, "eebo_core", raw_bucket)
+    get_s3(spark, "newspapers_core", raw_bucket)
 
     manifestation_ids = materialise_row_numbers(
         spark,
@@ -32,13 +39,12 @@ def manifestation_ids() -> Output[None]:
         bucket=processed_bucket
     )
     count = manifestation_ids.count()
-    return Output(None,metadata={"rows":count})
-
+    return Output(None, metadata={"rows": count})
 
 
 # create mapping between documents from manifestations and editions.
 # For books this is bewtwen ECCO and EEBO_TCP to ESTC id.
-# There are 1143 EEBO_TCP documents that don'y have a ESTC id, 
+# There are 1143 EEBO_TCP documents that don'y have a ESTC id,
 #       in those cases just use the EEBO_TCP id as a placeholder
 #       call this an edition_id.
 # Similarly, there are some ECCO documents that don't have an ESTC id,
@@ -47,17 +53,19 @@ def manifestation_ids() -> Output[None]:
 # are logically different. Therefore, we just map each article to its own individual issue
 @multi_asset(
     outs={
-        "edition_mapping":AssetOut(description="The mapping from manifestations to editions"),
-        "edition_ids":AssetOut(description="The unique editions and their ids")
+        "edition_mapping": AssetOut(description="The mapping from manifestations to editions"),
+        "edition_ids": AssetOut(description="The unique editions and their ids")
     },
-    deps=[ecco_core,eebo_core,newspapers_core,manifestation_ids]
+    deps=[ecco_core, eebo_core, newspapers_core, manifestation_ids],
+    group_name="metadata"
 )
 def edition_ids_and_mappings():
-    spark = get_spark_session(project_root,application_name="edition ids and mappings")
-    get_s3(spark,"ecco_core",raw_bucket)
-    get_s3(spark,"eebo_core",raw_bucket)
-    get_s3(spark,"newspapers_core",raw_bucket)
-    get_s3(spark,"manifestation_ids",processed_bucket)
+    spark = get_spark_session(
+        project_root, application_name="edition ids and mappings")
+    get_s3(spark, "ecco_core", raw_bucket)
+    get_s3(spark, "eebo_core", raw_bucket)
+    get_s3(spark, "newspapers_core", raw_bucket)
+    get_s3(spark, "manifestation_ids", processed_bucket)
 
     materialise_with_int_id(
         spark,
@@ -95,10 +103,9 @@ def edition_ids_and_mappings():
         bucket=processed_bucket,
         drop_col=True
     )
-    edition_ids = get_s3(spark,"edition_ids",processed_bucket)
+    edition_ids = get_s3(spark, "edition_ids", processed_bucket)
     editions_count = edition_ids.count()
-    return Output(None),Output(None,metadata={"rows":editions_count})
-
+    return Output(None), Output(None, metadata={"rows": editions_count})
 
 
 # For each edition find the work_id from ESTC
@@ -108,20 +115,23 @@ def edition_ids_and_mappings():
 # This will the default for the newspapers data which has no mapping to ESTC
 @multi_asset(
     outs={
-        "work_mapping":AssetOut(description="The mapping from manifestations to works"),
-        "work_ids":AssetOut(description="The unique works and their ids")
+        "work_mapping": AssetOut(description="The mapping from manifestations to works"),
+        "work_ids": AssetOut(description="The unique works and their ids")
     },
-    deps=[estc_core,newspapers_core,manifestation_ids,"edition_ids","edition_mapping"]
+    deps=[estc_core, newspapers_core, manifestation_ids,
+          "edition_ids", "edition_mapping"],
+    group_name="metadata"
 )
 def work_ids_and_mapping():
-    spark = get_spark_session(project_root,application_name="work ids and mapping")
-    get_s3(spark,"estc_core",raw_bucket)
-    get_s3(spark,"edition_mapping",processed_bucket)
-    get_s3(spark,"manifestation_ids",processed_bucket)
-    get_s3(spark,"edition_ids",processed_bucket)
+    spark = get_spark_session(
+        project_root, application_name="work ids and mapping")
+    get_s3(spark, "estc_core", raw_bucket)
+    get_s3(spark, "edition_mapping", processed_bucket)
+    get_s3(spark, "manifestation_ids", processed_bucket)
+    get_s3(spark, "edition_ids", processed_bucket)
     materialise_with_int_id(
         spark,
-        fname = "work_mapping",
+        fname="work_mapping",
         df=spark.sql("""
         SELECT DISTINCT
             em.manifestation_id_i,
@@ -141,17 +151,18 @@ def work_ids_and_mapping():
         bucket=processed_bucket,
         drop_col=True
     )
-    work_ids = get_s3(spark,"work_ids",processed_bucket)
+    work_ids = get_s3(spark, "work_ids", processed_bucket)
     works_count = work_ids.count()
-    return Output(None),Output(None,metadata={"rows":works_count})
+    return Output(None), Output(None, metadata={"rows": works_count})
 
 
-@asset(deps=[textreuse_ids,"edition_mapping",manifestation_ids],description="Mapping between textreuses and editions")
-def textreuse_edition_mapping() -> None:        
-    spark = get_spark_session(project_root,application_name="textreuse edition mapping")
-    get_s3(spark,"textreuse_ids",bucket=processed_bucket)
-    get_s3(spark,"manifestation_ids",bucket=processed_bucket)
-    get_s3(spark,"edition_mapping",bucket=processed_bucket)
+@asset(deps=[textreuse_ids, "edition_mapping", manifestation_ids], description="Mapping between textreuses and editions", group_name="textreuse_metadata_link")
+def textreuse_edition_mapping() -> None:
+    spark = get_spark_session(
+        project_root, application_name="textreuse edition mapping")
+    get_s3(spark, "textreuse_ids", bucket=processed_bucket)
+    get_s3(spark, "manifestation_ids", bucket=processed_bucket)
+    get_s3(spark, "edition_mapping", bucket=processed_bucket)
     materialise_s3(
         spark,
         fname="textreuse_edition_mapping",
@@ -164,12 +175,18 @@ def textreuse_edition_mapping() -> None:
         bucket=processed_bucket
     )
 
-@asset(deps=[textreuse_ids,manifestation_ids,"work_mapping"],description="Mapping between textreuses and works")
+
+@asset(
+    deps=[textreuse_ids, manifestation_ids, "work_mapping"],
+    description="Mapping between textreuses and works",
+    group_name="textreuse_metadata_link"
+)
 def textreuse_work_mapping() -> None:
-    spark = get_spark_session(project_root,application_name="textreuse work mapping")
-    get_s3(spark,"textreuse_ids",bucket=processed_bucket)
-    get_s3(spark,"manifestation_ids",bucket=processed_bucket)
-    get_s3(spark,"work_mapping",bucket=processed_bucket)
+    spark = get_spark_session(
+        project_root, application_name="textreuse work mapping")
+    get_s3(spark, "textreuse_ids", bucket=processed_bucket)
+    get_s3(spark, "manifestation_ids", bucket=processed_bucket)
+    get_s3(spark, "work_mapping", bucket=processed_bucket)
     materialise_s3(
         spark,
         fname="textreuse_work_mapping",
@@ -181,4 +198,3 @@ def textreuse_work_mapping() -> None:
         """),
         bucket=processed_bucket
     )
-

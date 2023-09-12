@@ -1,25 +1,37 @@
-#%%
+# %%
 from etl_textreuse.assets.orig_textreuses import orig_pieces, orig_textreuses
 from etl_textreuse.spark_utils import *
 from dagster import asset, multi_asset, AssetOut, AssetKey
 import subprocess
 from pathlib import Path
-#%%
-@asset(deps=[orig_pieces],description="Which defragmented piece each orignal piece goes to")
+# %%
+
+
+@asset(
+    deps=[orig_pieces],
+    description="Which defragmented piece each orignal piece goes to",
+    group_name="textreuses"
+)
 def piece_id_mappings() -> None:
     process = subprocess.run(["jupyter", "nbconvert", "--to", "notebook",
-                   "--inplace", "--execute", str(project_root/"etl_textreuse"/"assets"/"piece_id_mappings.ipynb")],capture_output=True)
-    if process.returncode !=0 :
+                              "--inplace", "--execute", str(project_root/"etl_textreuse"/"assets"/"piece_id_mappings.ipynb")], capture_output=True)
+    if process.returncode != 0:
         raise ChildProcessError(f"Error Running Notebook {process.stdout}")
     else:
         print(process.stderr)
         print(process.stdout)
 
-@asset(deps=[orig_pieces,piece_id_mappings],description="The pieces after defragmentation")
+
+@asset(
+    deps=[orig_pieces, piece_id_mappings],
+    description="The pieces after defragmentation",
+    group_name="textreuses"
+)
 def defrag_pieces() -> None:
-    spark = get_spark_session(project_root,application_name="degragmented pieces")
-    get_s3(spark,"orig_pieces",processed_bucket)
-    get_s3(spark,"piece_id_mappings",processed_bucket)
+    spark = get_spark_session(
+        project_root, application_name="degragmented pieces")
+    get_s3(spark, "orig_pieces", processed_bucket)
+    get_s3(spark, "piece_id_mappings", processed_bucket)
     materialise_s3(
         spark,
         fname="defrag_pieces",
@@ -32,11 +44,17 @@ def defrag_pieces() -> None:
         bucket=processed_bucket
     )
 
-@asset(deps=[orig_textreuses,piece_id_mappings],description="The textreuses between defragmented pieces")
+
+@asset(
+    deps=[orig_textreuses, piece_id_mappings],
+    description="The textreuses between defragmented pieces",
+    group_name="textreuses"
+)
 def defrag_textreuses() -> None:
-    spark = get_spark_session(project_root,application_name="degragmented textreuses")
-    get_s3(spark,"orig_textreuses",processed_bucket)
-    get_s3(spark,"piece_id_mappings",processed_bucket)
+    spark = get_spark_session(
+        project_root, application_name="degragmented textreuses")
+    get_s3(spark, "orig_textreuses", processed_bucket)
+    get_s3(spark, "piece_id_mappings", processed_bucket)
     materialise_row_numbers(
         spark,
         fname="defrag_textreuses",

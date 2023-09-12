@@ -1,5 +1,7 @@
-#%%
-import boto3 
+# %%
+from dagster import asset,  AssetKey, SourceAsset
+import json
+import boto3
 import zipfile
 import toml
 from pathlib import Path
@@ -9,12 +11,11 @@ from functools import partial
 from pyspark.sql.types import *
 from etl_textreuse.spark_utils import *
 project_root = Path(__file__).parent.parent.parent.resolve()
-import json
-from dagster import asset,  AssetKey, SourceAsset
-#%%
+# %%
 logger = logging.getLogger(__name__)
 
-def process_file(fileinfo:zipfile.ZipInfo,handler:zipfile.ZipFile):
+
+def process_file(fileinfo: zipfile.ZipInfo, handler: zipfile.ZipFile):
     """Reads a single file and returns JSON objects in stream
 
     Args:
@@ -31,15 +32,15 @@ def process_file(fileinfo:zipfile.ZipInfo,handler:zipfile.ZipFile):
             counter = 0
             # read JSON objects in streams
             for line in json_fp:
-                counter+=1 
+                counter += 1
                 logger.debug(f"Returning item: {counter}")
                 item = json.loads(line)
                 yield item
         except Exception:
             logger.exception(f"Cannot Open ZipFile object: {fileinfo}")
-    
 
-def process_partition(iterator,fname:str,cred:dict):
+
+def process_partition(iterator, fname: str, cred: dict):
     """Processes a chunk of files inside the zip.
     Initializes a s3 stream for a spark partition to read sequentially.
 
@@ -56,26 +57,31 @@ def process_partition(iterator,fname:str,cred:dict):
         service_name='s3',
         **cred["default"]
     )
-    transport_params=dict(client=s3)
+    transport_params = dict(client=s3)
     # open the S3 stream
-    with smart_open.open(fname,"rb",compression='disable',transport_params=transport_params) as fileobj:
+    with smart_open.open(fname, "rb", compression='disable', transport_params=transport_params) as fileobj:
         # open it as a ZipFile
         with zipfile.ZipFile(fileobj) as zf:
             for fileinfo in iterator:
                 logger.info(f"Processing file {fileinfo}")
-                for json_object in process_file(fileinfo,zf):
+                for json_object in process_file(fileinfo, zf):
                     yield json_object
 
 
+zip_file = SourceAsset(key=AssetKey("raw_texreuses_zip"),
+                       description="The raw zip files with textreuse data",group_name="textreuses")
 
-zip_file = SourceAsset(key=AssetKey("raw_texreuses_zip"),description="The raw zip files with textreuse data")
 
-@asset(deps=[zip_file],description="The parquet file of raw textreuses")
+@asset(
+    deps=[zip_file],
+    description="The parquet file of raw textreuses",
+    group_name="textreuses"
+)
 def raw_textreuses() -> None:
     fname = "newspapers_run_sample.zip"
     num_partitions = 200
     # load credentials for Pouta s3 storage
-    with open(project_root/"s3credentials.toml","r") as fp:
+    with open(project_root/"s3credentials.toml", "r") as fp:
         cred = toml.load(fp)
 
     session = boto3.session.Session()
@@ -83,22 +89,23 @@ def raw_textreuses() -> None:
         service_name='s3',
         **cred["default"]
     )
-    transport_params=dict(client=s3)
+    transport_params = dict(client=s3)
     # filename inside the bucket
     fname = f"s3://{raw_bucket}/{fname}"
     # filename inside the bucket
     output_fname = f"s3a://{processed_bucket}/raw_textreuses.parquet"
     # read the files in the zip file
-    with smart_open.open(fname,"rb",compression='disable',transport_params=transport_params) as fileobj:
+    with smart_open.open(fname, "rb", compression='disable', transport_params=transport_params) as fileobj:
         # open file as ZIP
         with zipfile.ZipFile(fileobj) as zf:
             infolist = zf.infolist()
 
     # get spark session
-    spark = get_spark_session(project_root,application_name="Raw Text Reuses Zip2Parquet")
+    spark = get_spark_session(
+        project_root, application_name="Raw Text Reuses Zip2Parquet")
     # get a partial function
-    func1 = partial(process_partition,fname=fname,cred=cred)
-    rdd1 = spark.sparkContext.parallelize(infolist,num_partitions)
+    func1 = partial(process_partition, fname=fname, cred=cred)
+    rdd1 = spark.sparkContext.parallelize(infolist, num_partitions)
     # get the JSONs from the RDD
     jsons1 = rdd1.mapPartitions(func1)
     # the schema for the dataframe
@@ -117,20 +124,25 @@ def raw_textreuses() -> None:
         ]
     )
     # convert into a dataframe
-    df1 = spark.createDataFrame(jsons1,schema=schema)
+    df1 = spark.createDataFrame(jsons1, schema=schema)
     # write to the output file
     df1.write.mode("overwrite").parquet(output_fname)
 
 
-@asset(deps=[raw_textreuses],description="The INT ids for textreuse sources")
+@asset(
+    deps=[raw_textreuses],
+    description="The INT ids for textreuse sources",
+    group_name="textreuses"
+)
 def textreuse_ids() -> None:
-    spark = get_spark_session(project_root,application_name="textreuse_ids")
-    # load the 
-    get_s3(spark,"raw_textreuses",processed_bucket,table_name="textreuses_raw")
+    spark = get_spark_session(project_root, application_name="textreuse_ids")
+    # load the
+    get_s3(spark, "raw_textreuses", processed_bucket,
+           table_name="textreuses_raw")
     textreuse_ids = materialise_row_numbers(
         spark,
-        fname = "textreuse_ids",
-        df = spark.sql("""   
+        fname="textreuse_ids",
+        df=spark.sql("""   
         SELECT * FROM (
             SELECT 
                 text1_id AS text_name,
@@ -154,14 +166,20 @@ def textreuse_ids() -> None:
         ) 
         ORDER BY manifestation_id,structure_name"""),
         col_name="trs_id",
-        bucket = processed_bucket)
+        bucket=processed_bucket)
 
-@asset(deps=[raw_textreuses,textreuse_ids],description="The textreuses with ids mapped")
+
+@asset(
+    deps=[raw_textreuses, textreuse_ids],
+    description="The textreuses with ids mapped",
+    group_name="textreuses"
+)
 def textreuses() -> None:
-    spark = get_spark_session(project_root,application_name="textreuses")
+    spark = get_spark_session(project_root, application_name="textreuses")
     # load the required files
-    get_s3(spark,"raw_textreuses",processed_bucket,table_name="textreuses_raw")
-    get_s3(spark,"textreuse_ids",processed_bucket)
+    get_s3(spark, "raw_textreuses", processed_bucket,
+           table_name="textreuses_raw")
+    get_s3(spark, "textreuse_ids", processed_bucket)
 
     textreuses = materialise_row_numbers(
         spark,
