@@ -101,8 +101,8 @@ ORDER BY article_id;
 INSERT INTO `hpc-hd-newspapers-columnstore`.defrag_pieces    
 SELECT *
 FROM `hpc-hd-newspapers`.defrag_pieces
-FORCE INDEX (PRIMARY)
 ORDER BY piece_id;
+-- FORCE INDEX (PRIMARY)
 
 INSERT INTO `hpc-hd-newspapers-columnstore`.earliest_work_and_pieces_by_cluster    
 SELECT *
