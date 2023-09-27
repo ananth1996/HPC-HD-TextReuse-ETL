@@ -121,7 +121,7 @@ def get_query_dists(statistics:pd.DataFrame,log_bins = True):
     df = df.set_index("query_dist_id")
     return df
 #%%
-def get_samples(database:str,num_samples=100,seed=2,data_dir:Path=project_root/"data"):
+def get_samples(database:str,num_samples=100,seed=42,data_dir:Path=project_root/"data"):
     statistics = pd.read_csv(data_dir/f"{database}-num-reception-edges.csv")
     query_dists = get_query_dists(statistics)
     query_dists.to_csv(data_dir/f"{database}-query-dists.csv",index=False)
@@ -212,7 +212,8 @@ def extended_query_profile(query_type:str,sample:Tuple[str,int],database,timeout
 
 def wrap_query_profile(kwargs):
     return extended_query_profile(**kwargs)
-def profile(timeout:Optional[float]=None):
+
+def profile():
     param_grid = [
         {
             "query_type":list(QUERY_TYPE_MAP.keys()),
@@ -228,7 +229,7 @@ def profile(timeout:Optional[float]=None):
     ]
     grid = ParameterGrid(param_grid)
 
-    with mp.Pool(processes=12) as pool:
+    with mp.Pool(processes=1) as pool:
         rows = []
         for result in tqdm(pool.imap_unordered(wrap_query_profile,grid), total=len(grid)):
             rows.append(result)
@@ -237,6 +238,6 @@ def profile(timeout:Optional[float]=None):
 # %%
 
 if __name__ == "__main__":
-    df = profile(2)
+    df = profile()
     df.to_csv(project_root/"data"/"results.csv",index=False)
 # %%
