@@ -76,16 +76,19 @@ for table,bucket in data_tables:
     )
 
 # %%
-textreuse_ids=    get_s3("textreuse_ids", processed_bucket)
+textreuse_ids=  get_s3("textreuse_ids", processed_bucket)
 textreuse_sources = get_s3("textreuse_sources",raw_bucket)
+#%%
 df = spark.sql("""
         SELECT /*+ BROADCAST(ti) */
         trs_id, text
         FROM textreuse_sources ts
         INNER JOIN textreuse_ids ti ON ti.text_name = ts.doc_id
         """)
+#%%
 (jdbc_opts(df.write,database="hpc-hd-newspapers")
             .option("dbtable", "textreuse_sources") 
             .option("truncate", "true")
             .mode("overwrite")
             .save())
+# %%

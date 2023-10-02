@@ -111,3 +111,6 @@ ADD INDEX IF NOT EXISTS `piece_id` (`piece_id`),
 ADD INDEX IF NOT EXISTS `edition_id_i` (`edition_id_i`),
 ADD INDEX IF NOT EXISTS `trs_id` (`trs_id`),
 ADD INDEX IF NOT EXISTS `piece_length` (`piece_length`);
+
+ALTER TABLE `textreuse_sources`
+ADD PRIMARY KEY (`trs_id`);

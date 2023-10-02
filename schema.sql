@@ -319,3 +319,9 @@ CREATE TABLE IF NOT EXISTS `coverages` (
     `t2_length` int(11) unsigned DEFAULT NULL,
     `coverage_t2_t1` double unsigned DEFAULT NULL
 )ENGINE=Aria PAGE_CHECKSUM=0 TRANSACTIONAL=0;
+
+
+CREATE TABLE IF NOT EXISTS `textreuse_sources` (
+    `trs_id` int(11) unsigned NOT NULL,
+    `text` mediumtext NOT NULL
+)ENGINE=Aria PAGE_CHECKSUM=0 TRANSACTIONAL=0;
