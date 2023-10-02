@@ -16,32 +16,32 @@ else:
 # Load the metadata tables
 metadata_tables = [
     ["textreuse_ids",processed_bucket,],
-    ["manifestation_ids",processed_bucket,],
-    ["edition_ids",processed_bucket,],
-    ["work_ids",processed_bucket,],
-    ["actor_ids",processed_bucket,],
-    ["textreuse_work_mapping",processed_bucket,],
-    ["textreuse_edition_mapping",processed_bucket,],
-    ["work_mapping",processed_bucket,],
-    ["edition_mapping",processed_bucket,],
-    ["edition_publication_date",processed_bucket,],
-    ["work_earliest_publication_date",processed_bucket,],
-    ["textreuse_earliest_publication_date",processed_bucket,],
-    ["textreuse_source_lengths",processed_bucket]
-    ["edition_authors",processed_bucket,],
-    ["estc_core",raw_bucket,],
-    ["ecco_core",raw_bucket,],
-    ["eebo_core",raw_bucket,],
-    ["newspapers_core",raw_bucket,],
-    ["estc_actor_links",raw_bucket,],
-    ["estc_actors",raw_bucket,],
+    # ["manifestation_ids",processed_bucket,],
+    # ["edition_ids",processed_bucket,],
+    # ["work_ids",processed_bucket,],
+    # ["actor_ids",processed_bucket,],
+    # ["textreuse_work_mapping",processed_bucket,],
+    # ["textreuse_edition_mapping",processed_bucket,],
+    # ["work_mapping",processed_bucket,],
+    # ["edition_mapping",processed_bucket,],
+    # ["edition_publication_date",processed_bucket,],
+    # ["work_earliest_publication_date",processed_bucket,],
+    # ["textreuse_earliest_publication_date",processed_bucket,],
+    # ["textreuse_source_lengths",processed_bucket]
+    # ["edition_authors",processed_bucket,],
+    # ["estc_core",raw_bucket,],
+    # ["ecco_core",raw_bucket,],
+    # ["eebo_core",raw_bucket,],
+    # ["newspapers_core",raw_bucket,],
+    # ["estc_actor_links",raw_bucket,],
+    # ["estc_actors",raw_bucket,],
 ]
 for table,bucket in metadata_tables:
     df =  get_s3(table,bucket)
     print(f"Loading {table=}\n{df}")
     (
-        jdbc_opts(df.write,database="mariadbNewspapers").
-        option("createTableOptions","ENGINE=ARIA TRANSACTIONAL=0 PAGE_CHECKSUM=0")
+        jdbc_opts(df.write,database="mariadbNewspapers")
+        # .option("createTableOptions","ENGINE=ARIA TRANSACTIONAL=0 PAGE_CHECKSUM=0")
         .option("dbtable", table) 
         .option("truncate", "true")
         .mode("overwrite")
@@ -76,3 +76,16 @@ for table,bucket in data_tables:
     )
 
 # %%
+textreuse_ids=    get_s3("textreuse_ids", processed_bucket)
+textreuse_sources = get_s3("textreuse_sources",raw_bucket)
+df = spark.sql("""
+        SELECT /*+ BROADCAST(ti) */
+        trs_id, text
+        FROM textreuse_sources ts
+        INNER JOIN textreuse_ids ti ON ti.text_name = ts.doc_id
+        """)
+(jdbc_opts(df.write,database="hpc-hd-newspapers")
+            .option("dbtable", "textreuse_sources") 
+            .option("truncate", "true")
+            .mode("overwrite")
+            .save())
