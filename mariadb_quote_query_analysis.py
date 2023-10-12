@@ -133,9 +133,9 @@ LIMIT 100
 # %%
 
 QUERY_TYPE_MAP = {
-    # "denorm":denorm_query,
+    "denorm":denorm_query,
     "intermediate": intermediate_query,
-    # "standard":standard_query
+    "standard":standard_query
 }
 
 engines = {
