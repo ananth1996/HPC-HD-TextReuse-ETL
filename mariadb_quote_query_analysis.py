@@ -310,13 +310,13 @@ def profile(timeout: Optional[float] = None):
     param_grid = [
         {
             "query_type": list(QUERY_TYPE_MAP.keys()),
-            "sample": list(get_samples("hpc-hd")[["manifestation_id", "ground_truth"]].itertuples(index=False, name=None)),
+            "sample": list(get_samples("hpc-hd")[["edition_id", "ground_truth"]].itertuples(index=False, name=None)),
             "database":["hpc-hd","hpc-hd-columnstore"],
             "timeout":[timeout]
         },
         {
             "query_type":list(QUERY_TYPE_MAP.keys()),
-            "sample":list(get_samples("hpc-hd-newspapers")[["manifestation_id","ground_truth"]].itertuples(index=False,name=None)),
+            "sample":list(get_samples("hpc-hd-newspapers")[["edition_id","ground_truth"]].itertuples(index=False,name=None)),
             "database":["hpc-hd-newspapers","hpc-hd-newspapers-columnstore"],
             "timeout":[timeout]
         }
