@@ -144,4 +144,9 @@ SELECT *
 FROM `hpc-hd-newspapers`.defrag_textreuses
 ORDER BY textreuse_id;
 
+INSERT INTO `hpc-hd-newspapers-columnstore`.textreuse_sources
+SELECT *
+FROM `hpc-hd-newspapers`.textreuse_sources
+ORDER BY trs_id;
+
 

@@ -325,3 +325,8 @@ CREATE TABLE IF NOT EXISTS `hpc-hd-newspapers-columnstore`.`non_source_pieces` (
     `cluster_id` int(11) unsigned NOT NULL,
     `piece_id` bigint(20) unsigned NOT NULL
 )ENGINE=Columnstore DEFAULT CHARSET=utf8mb3;
+
+CREATE TABLE IF NOT EXISTS `hpc-hd-newspapers-columnstore`.`textreuse_sources` (
+    `trs_id` int(11) unsigned NOT NULL,
+    `text` mediumtext NOT NULL
+)ENGINE=Columnstore DEFAULT CHARSET=utf8mb3;
