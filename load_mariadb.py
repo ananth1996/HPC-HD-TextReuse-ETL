@@ -79,6 +79,10 @@ for table,bucket in data_tables:
 textreuse_ids=  get_s3("textreuse_ids", processed_bucket)
 textreuse_sources = get_s3("textreuse_sources",raw_bucket)
 #%%
+textreuse_ids=  get_s3("textreuse_ids", processed_bucket)
+textreuse_sources = get_s3("textreuse_sources",raw_bucket)
+defrag_pieces = get_s3("defrag_pieces",processed_bucket)
+#%%
 df = spark.sql("""
         SELECT /*+ BROADCAST(ti) */
         trs_id, text
