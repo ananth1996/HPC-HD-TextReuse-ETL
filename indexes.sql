@@ -20,6 +20,10 @@ ALTER TABLE `actor_ids`
 ADD PRIMARY KEY (`actor_id_i`),
 ADD INDEX IF NOT EXISTS `actor_composite` (`actor_id`,`actor_id_i`);
 
+ALTER TABLE `edition_authors`
+ADD INDEX IF NOT EXISTS `edition_id_i` (`edition_id_i`),
+ADD INDEX IF NOT EXISTS `actor_id_i` (`actor_id_i`);
+
 ALTER TABLE `textreuse_work_mapping`
 ADD INDEX IF NOT EXISTS `trs_id` (`trs_id`),
 ADD INDEX IF NOT EXISTS `work_id_i` (`work_id_i`);
