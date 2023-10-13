@@ -45,7 +45,7 @@ WITH filtered_clusters AS (
         SELECT cluster_id,piece_id FROM earliest_work_and_pieces_by_cluster ewapbca2 
         RIGHT JOIN clustered_defrag_pieces cdp USING(cluster_id,piece_id) 
         WHERE work_id_i IS NULL -- where it is not the earliest piece
-,query_authors AS (
+),query_authors AS (
 	SELECT DISTINCT actor_id_i 
 	FROM edition_authors 
 	INNER JOIN edition_ids USING(edition_id_i)
@@ -229,6 +229,7 @@ def get_samples(dataset: str, num_samples=10, seed=42, data_dir: Path = project_
     sample_ground_truths = []
     query_dist_ids = []
     num_queries = len(sum_n_works)
+    print(f"Samples for {dataset=}")
     for query_dist_id, low, high in query_dists.itertuples():
         dist_mask = (sum_n_works >= low) & (
             sum_n_works <= high)
@@ -339,12 +340,12 @@ if __name__ == "__main__":
     df = profile(900)
     df.to_csv(project_root/"data"/"quote-queries-results-1.csv",index=False)
     #%%
-    # timeout = 5
+    # timeout = 120
     # param_grid = [
     #     {
-    #         "query_type": list(QUERY_TYPE_MAP.keys()),
+    #         "query_type": ["standard"],#list(QUERY_TYPE_MAP.keys()),
     #         "sample": list(get_samples("hpc-hd")[["edition_id", "ground_truth"]].itertuples(index=False, name=None)),
-    #         "database":["hpc-hd-columnstore"],
+    #         "database":["hpc-hd"],
     #         "timeout":[timeout],
     #     },
     #     # {
@@ -361,3 +362,6 @@ if __name__ == "__main__":
     #     rows.append(result)
     # df = pd.DataFrame(rows)
     # %%
+
+
+# ANALYZE TABLE source_piece_statistics_denorm,non_source_pieces,earliest_work_and_pieces_by_cluster,defrag_pieces,textreuse_edition_mapping,edition_authors,textreuse_work_mapping;
