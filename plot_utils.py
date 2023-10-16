@@ -11,13 +11,13 @@ def log_binning(data,n_bins=10,density=True,ret_bins=False):
     else:
         return bin_centres,pdf
 
-def loglog_hist(data,n_bins=20,ax=None):
+def loglog_hist(data,n_bins=20,ax=None,**kwargs):
     if ax is None:
         fig,ax = plt.subplots()
     min_val = min(data)
     max_val = max(data)
     bins = np.logspace(np.log10(min_val),np.log10(max_val),base=10,num=n_bins)
-    ax.hist(data,bins=bins,log=True,density=False,edgecolor="black")
+    ax.hist(data,bins=bins,log=True,density=False,edgecolor="black",**kwargs)
     ax.set_xscale("log")
     ax.set_yscale("log")
     return ax
