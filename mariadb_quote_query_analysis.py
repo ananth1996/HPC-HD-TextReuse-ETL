@@ -212,7 +212,7 @@ def get_query_dists(statistics: pd.DataFrame, log_bins=True):
 # %%
 
 
-def get_samples(dataset: str, num_samples=10, seed=42, data_dir: Path = project_root/"data",log_bins:bool=True,replace:bool=False):
+def get_samples(dataset: str, num_samples=10, seed=42, data_dir: Path = project_root/"data",log_bins:bool=True,replace:bool=False,verbose:bool=True):
     statistics = get_statistics(dataset,replace=replace)
     query_dists = get_query_dists(statistics,log_bins=log_bins)
     if log_bins:
@@ -229,13 +229,14 @@ def get_samples(dataset: str, num_samples=10, seed=42, data_dir: Path = project_
     sample_ground_truths = []
     query_dist_ids = []
     num_queries = len(sum_n_works)
-    print(f"Samples for {dataset=}")
+    if verbose: print(f"Samples for {dataset=}")
     for query_dist_id, low, high in query_dists.itertuples():
         dist_mask = (sum_n_works >= low) & (
             sum_n_works <= high)
         mask_size = sum(dist_mask)
-        print(
-            f"Bucket {query_dist_id}: Sampling {_num_samples} from {low=:g} and {high=:g} ({mask_size} items, {(mask_size/num_queries)*100:g}%)")
+        if verbose:
+            print(
+                f"Bucket {query_dist_id}: Sampling {_num_samples} from {low=:g} and {high=:g} ({mask_size} items, {(mask_size/num_queries)*100:g}%)")
         sample_ids = rng.choice(a=mask_size, size=_num_samples, replace=False)
         _samples = edition_ids[dist_mask][sample_ids]
         _sample_ground_truths = ground_truths[dist_mask][sample_ids]
