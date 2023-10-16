@@ -32,6 +32,7 @@ from plot_utils import log_binning
 import multiprocessing as mp
 import threading
 from time import perf_counter as time
+import csv
 # %%
 denorm_query = text("""
 SELECT re.* FROM reception_edges_denorm re 
@@ -178,39 +179,30 @@ def get_samples(database: str, num_samples=100, seed=42, data_dir: Path = projec
 
 doc_id_pattern = re.compile("manifestation_id='(.*?)'")
 
-
-def query_timeout(conn, cursor, statement, parameters,
-                  context, executemany):
-    timeout = context.execution_options.get('timeout', None)
-    if timeout is not None:
-        cursor.execute(f"SET SESSION max_statement_time={timeout}")
-        # print("Adding timeout")
-        # print(statement)
-
-
-def kill_query(conn,thread_id):
+def kill_query(engine,thread_id):
     print(f"Killing trhead {thread_id}")
-    conn.execute(
-                text("kill :thread_id"), parameters={"thread_id": thread_id})
+    with engine.connect() as conn:
+        conn.execute(
+                    text("kill :thread_id"), parameters={"thread_id": thread_id})
 
 def profile_query(engine, statement, doc_id, ground_truth, database, timeout=None, conn=None):
-    with engine.connect() as conn:
-        if timeout:
-            conn.execute(text(f"SET SESSION max_statement_time={timeout}"))
+    try:
+        with engine.connect() as conn:
+            columnstore_flag = "columnstore" in database 
+            columnstore_timeout = timeout is not None and columnstore_flag
+            rowstore_timeout = timeout is not None and not columnstore_flag 
+            if rowstore_timeout:
+                conn.execute(text(f"SET SESSION max_statement_time={timeout}"))
 
-        # conn.execute(text("SET SESSION profiling=0;"))
-        # if "columnstore" not in database:
-            # conn.execute(text("FLUSH NO_WRITE_TO_BINLOG TABLES reception_edges_denorm,non_source_pieces,manifestation_ids,earliest_work_and_pieces_by_cluster,defrag_pieces,clustered_defrag_piecess;"))
-        conn.execute(text("RESET QUERY CACHE;"))
-        # conn.execute(text("SET SESSION profiling=1;"))
-        # conn.execute(text("SET SESSION profiling_history_size=1;"))
-        # if timeout:
-        #     # thread_id = conn.connection.thread_id()
-        #     t = threading.Timer(timeout, conn.close)
-        #     t.start()
-        try:
-            # result = conn.execute(statement, parameters=dict(
-            #     doc_id=doc_id)).fetchall()
+            if not columnstore_flag:
+                conn.execute(text("FLUSH NO_WRITE_TO_BINLOG TABLES reception_edges_denorm,non_source_pieces,manifestation_ids,earliest_work_and_pieces_by_cluster,defrag_pieces,clustered_defrag_piecess;"))
+            conn.execute(text("RESET QUERY CACHE;"))
+        
+        
+            if columnstore_timeout:
+                thread_id = conn.connection.thread_id()
+                t = threading.Timer(timeout, lambda: kill_query(engine,thread_id))
+                t.start()
             start = time()
             rows= 0
             with conn.execution_options(stream_results=True).execute(
@@ -219,23 +211,20 @@ def profile_query(engine, statement, doc_id, ground_truth, database, timeout=Non
                 for _ in result:
                     rows+=1
             duration = time() - start
-            # if timeout is not None:
-            #     t.cancel()
+            if columnstore_timeout:
+                t.cancel()
             assert rows == ground_truth
-        except OperationalError as e:
+    except OperationalError as e:
             # print("Timeout")
             # print(e)
             rows = None
-        except IndexError as e:
+    except IndexError as e:
             # print("ColumnStore Timeout")
             # print(e)
             rows = None
-        except Exception as e:
-            # print(e)
-            rows = None
-        if rows is None:
-            duration = None
-        return {"doc_id": doc_id, "duration": duration}
+    if rows is None:
+        duration = None
+    return {"doc_id": doc_id, "duration": duration}
 
 # %%
 
@@ -263,13 +252,13 @@ def profile(timeout: Optional[float] = None):
         {
             "query_type": list(QUERY_TYPE_MAP.keys()),
             "sample": list(get_samples("hpc-hd")[["manifestation_id", "ground_truth"]].itertuples(index=False, name=None)),
-            "database":["hpc-hd"],
+            "database":["hpc-hd-columnstore"],
             "timeout":[timeout]
         },
         {
             "query_type":list(QUERY_TYPE_MAP.keys()),
             "sample":list(get_samples("hpc-hd-newspapers")[["manifestation_id","ground_truth"]].itertuples(index=False,name=None)),
-            "database":["hpc-hd-newspapers"],
+            "database":["hpc-hd-newspapers-columnstore"],
             "timeout":[timeout]
         }
     ]
@@ -280,18 +269,24 @@ def profile(timeout: Optional[float] = None):
     #     for result in tqdm(pool.imap_unordered(wrap_query_profile,grid), total=len(grid)):
     #         rows.append(result)
     rows = []
-    for params in tqdm(grid, total=len(grid)):
-        result = wrap_query_profile(params)
-        rows.append(result)
-    return pd.DataFrame(rows)
+    with open(project_root/"data"/"reception-queries-results-2.csv", 'w') as csvfile:
+        fieldnames = ["doc_id","duration","query_type","database"]
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writeheader()
+        for params in tqdm(grid, total=len(grid)):
+            result = wrap_query_profile(params)
+            writer.writerow(result)
+            csvfile.flush()
+        # rows.append(result)
+    # return pd.DataFrame(rows)
 # %%
 
 
 if __name__ == "__main__":
     df = profile(300)
-    df.to_csv(project_root/"data"/"reception-queries-results-1.csv",index=False)
+    # df.to_csv(project_root/"data"/"reception-queries-results-2.csv",index=False)
     # %%
-    # timeout = 120
+    # timeout = 10
     # param_grid = [
     #     {
     #         "query_type": list(QUERY_TYPE_MAP.keys()),
