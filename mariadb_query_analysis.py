@@ -215,12 +215,18 @@ def profile_query(engine, statement, doc_id, ground_truth, database, timeout=Non
                 t.cancel()
             assert rows == ground_truth
     except OperationalError as e:
-            # print("Timeout")
-            # print(e)
-            rows = None
+        # print("Timeout")
+        # print(e)
+        rows = None
     except IndexError as e:
-            # print("ColumnStore Timeout")
-            # print(e)
+        # print("ColumnStore Timeout")
+        # print(e)
+        rows = None
+    except AssertionError as e:
+        if rows != 0:
+            print(f"Assertion Error. Query returns {rows}. Stat says: {ground_truth}")
+        else:
+            # print("Query killed. Returned 0.")
             rows = None
     if rows is None:
         duration = None
@@ -262,17 +268,26 @@ def profile(timeout: Optional[float] = None):
             "timeout":[timeout]
         }
     ]
-    grid = ParameterGrid(param_grid)
+    grid = list(ParameterGrid(param_grid))
 
     # with mp.Pool(processes=1) as pool:
     #     rows = []
     #     for result in tqdm(pool.imap_unordered(wrap_query_profile,grid), total=len(grid)):
     #         rows.append(result)
     rows = []
-    with open(project_root/"data"/"reception-queries-results-2.csv", 'w') as csvfile:
+    with open(project_root/"data"/"reception-queries-results-2.csv", 'a+') as csvfile:
         fieldnames = ["doc_id","duration","query_type","database"]
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-        writer.writeheader()
+        # go to beginning of file
+        csvfile.seek(0)
+        num_lines = len(csvfile.readlines())
+        if num_lines>1:
+            num_entries = num_lines-1
+            grid = grid[num_entries:]
+        else:
+            writer.writeheader()
+        # go to end of file
+        csvfile.seek(0,2)
         for params in tqdm(grid, total=len(grid)):
             result = wrap_query_profile(params)
             writer.writerow(result)
