@@ -186,6 +186,7 @@ def kill_query(engine,thread_id):
                     text("kill :thread_id"), parameters={"thread_id": thread_id})
 
 def profile_query(engine, statement, doc_id, ground_truth, database, timeout=None, conn=None):
+    error = None
     try:
         with engine.connect() as conn:
             columnstore_flag = "columnstore" in database 
@@ -217,21 +218,19 @@ def profile_query(engine, statement, doc_id, ground_truth, database, timeout=Non
     except OperationalError as e:
         # print("Timeout")
         # print(e)
+        error = "OperationError"
         rows = None
     except IndexError as e:
         # print("ColumnStore Timeout")
         # print(e)
+        error = "IndexError"
         rows = None
     except AssertionError as e:
-        if rows != 0:
-            print(f"Assertion Error. Query returns {rows}. Stat says: {ground_truth}")
-            print("Query was probably killed before stream was complete")
-        else:
-            print("Query never started")
+        error=(f"Assertion Error. {rows=} and {ground_truth=}")
         rows = None
     if rows is None:
         duration = None
-    return {"doc_id": doc_id, "duration": duration}
+    return {"doc_id": doc_id, "duration": duration,"error":error}
 
 # %%
 
@@ -277,7 +276,7 @@ def profile(timeout: Optional[float] = None):
     #         rows.append(result)
     rows = []
     with open(project_root/"data"/"reception-queries-results-2.csv", 'a+') as csvfile:
-        fieldnames = ["doc_id","duration","query_type","database"]
+        fieldnames = ["doc_id","duration","query_type","database","error"]
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         # go to beginning of file
         csvfile.seek(0)
