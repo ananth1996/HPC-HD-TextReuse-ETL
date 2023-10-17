@@ -226,7 +226,9 @@ def profile_query(engine, statement, doc_id, ground_truth, database, timeout=Non
         if rows != 0:
             print(f"Assertion Error. Query returns {rows}. Stat says: {ground_truth}")
             print("Query was probably killed before stream was complete")
-            rows = None
+        else:
+            print("Query never started")
+        rows = None
     if rows is None:
         duration = None
     return {"doc_id": doc_id, "duration": duration}
