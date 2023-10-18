@@ -258,13 +258,13 @@ def profile(timeout: Optional[float] = None):
         {
             "query_type": list(QUERY_TYPE_MAP.keys()),
             "sample": list(get_samples("hpc-hd")[["manifestation_id", "ground_truth"]].itertuples(index=False, name=None)),
-            "database":["hpc-hd-columnstore"],
+            "database":["hpc-hd"],
             "timeout":[timeout]
         },
         {
             "query_type":list(QUERY_TYPE_MAP.keys()),
             "sample":list(get_samples("hpc-hd-newspapers")[["manifestation_id","ground_truth"]].itertuples(index=False,name=None)),
-            "database":["hpc-hd-newspapers-columnstore"],
+            "database":["hpc-hd-newspapers"],
             "timeout":[timeout]
         }
     ]
@@ -275,7 +275,7 @@ def profile(timeout: Optional[float] = None):
     #     for result in tqdm(pool.imap_unordered(wrap_query_profile,grid), total=len(grid)):
     #         rows.append(result)
     rows = []
-    with open(project_root/"data"/"reception-queries-results-2.csv", 'a+') as csvfile:
+    with open(project_root/"data"/"reception-queries-results-1.csv", 'a+') as csvfile:
         fieldnames = ["doc_id","duration","query_type","database","error"]
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         # go to beginning of file
