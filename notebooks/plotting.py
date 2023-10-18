@@ -63,7 +63,7 @@ def load_columnstore_store_table_sizes(dataset: str, data_dir: Path = project_ro
 
 
 def load_table_sizes(dataset, replace: bool = False):
-    size_multiple = {"MB": 1024**2, "GB": 1024**3}
+    size_multiple = {"MB": 1024**2, "GB": 1024**3, "KB":1024}
     newspapers_columnstore_sizes = load_columnstore_store_table_sizes(
         dataset, replace=replace)
     newspapers_columnstore_sizes[[
@@ -142,7 +142,16 @@ def get_running_times(query,dataset,data_dir=project_root/"data"):
     #     "../data/hpc-hd-newspapers-aria-reception-analysis.csv")
     # aria_results["TABLE_SCHEMA"] = "hpc-hd-newspapers"
     # df = pd.concat([aria_results, columnstore_results])
-    if query == "quote":
+    if query == "reception":
+        dfs = []
+        for file in data_dir.glob("reception-queries-results*"):
+            dfs.append(pd.read_csv(file))
+        df = pd.concat(dfs)
+        df = df[df.database.isin([dataset,dataset+"-columnstore"])]
+        samples = pd.read_csv(data_dir/f"{dataset}-samples.csv")
+        df = df.merge(samples,left_on="doc_id",right_on="manifestation_id")
+        df = df.rename(columns={"database":"TABLE_SCHEMA"})
+    elif query == "quote":
         df = pd.read_csv(data_dir/"quote-queries-results-1.csv")
         df = df[df.database.isin([dataset,dataset+"-columnstore"])]
         if dataset == "hpc-hd":
@@ -155,8 +164,8 @@ def get_running_times(query,dataset,data_dir=project_root/"data"):
     return df
 
 #%%
-dataset = "hpc-hd-newspapers"
-query = "quote"
+dataset = "hpc-hd"
+query = "reception"
 sizes = load_table_sizes(dataset)
 sizes["TABLE_SCHEMA"] = sizes.TABLE_SCHEMA.apply(lambda s: s if "columnstore" in s else s + "-rowstore" )
 #%%
@@ -182,14 +191,18 @@ running_times["TABLE_SCHEMA"] = running_times.TABLE_SCHEMA.apply(lambda s: s if 
 running_times = running_times.merge(
     query_table_sizes, on=["TABLE_SCHEMA", "query_type"])
 # %%
-if dataset == "hpc-hd-newspapers":
+if dataset == "hpc-hd-newspapers" and query == "quote":
     _df = running_times.query("query_dists_id<7")
+elif dataset == "hpc-hd" and query == "reception":
+    _df = running_times.query("query_dists_id<9")
+elif dataset == "hpc-hd-newspapers" and query == "reception":
+    _df = running_times.query("query_dists_id<9")
 else:
     _df = running_times
 hue = _df[['query_type', 'TABLE_SCHEMA']].apply(
     lambda row: f"{row.query_type}, {row.TABLE_SCHEMA}", axis=1)
 hue.name = 'query_type, query_type'
-sns.barplot(data=_df, x="total_size", y="duration", hue=hue,native_scale=True,log_scale=[2,False])
+sns.pointplot(data=_df, x="total_size", y="duration", hue=hue,native_scale=True,log_scale=[2,False])
 plt.yscale("log")
 ticks = [s for s in _df.total_size.unique()]
 labels = [sizeof_fmt(s) for s in ticks]
