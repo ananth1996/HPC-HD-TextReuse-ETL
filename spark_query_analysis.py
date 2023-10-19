@@ -203,25 +203,25 @@ def profile(timeout: Optional[float] = None):
 if __name__ == "__main__":
     profile(300)
     #%%
-    timeout = 10
-    param_grid = [
-        # {
-        #     "query_type": list(QUERY_TYPE_MAP.keys()),
-        #     "sample": list(get_samples("hpc-hd")[["manifestation_id", "ground_truth"]].itertuples(index=False, name=None)),
-        #     "dataset":["hpc-hd"],
-        #     "case":["reception"],
-        #     "timeout":[timeout],
-        # },
-        {
-            "query_type": list(QUERY_TYPE_MAP.keys()),
-            "sample": list(get_samples("hpc-hd-newspapers")[["manifestation_id", "ground_truth"]].itertuples(index=False, name=None)),
-            "dataset":["hpc-hd-newspapers"],
-            "case":["reception"],
-            "timeout":[timeout],
-        }
-    ]
-    grid = ParameterGrid(param_grid)
-    #%%
-    print(wrap_query_profile(grid[1]))
-    print(wrap_query_profile(grid[2]))
+    # timeout = 10
+    # param_grid = [
+    #     # {
+    #     #     "query_type": list(QUERY_TYPE_MAP.keys()),
+    #     #     "sample": list(get_samples("hpc-hd")[["manifestation_id", "ground_truth"]].itertuples(index=False, name=None)),
+    #     #     "dataset":["hpc-hd"],
+    #     #     "case":["reception"],
+    #     #     "timeout":[timeout],
+    #     # },
+    #     {
+    #         "query_type": list(QUERY_TYPE_MAP.keys()),
+    #         "sample": list(get_samples("hpc-hd-newspapers")[["manifestation_id", "ground_truth"]].itertuples(index=False, name=None)),
+    #         "dataset":["hpc-hd-newspapers"],
+    #         "case":["reception"],
+    #         "timeout":[timeout],
+    #     }
+    # ]
+    # grid = ParameterGrid(param_grid)
+    # #%%
+    # print(wrap_query_profile(grid[1]))
+    # print(wrap_query_profile(grid[2]))
 # %%
