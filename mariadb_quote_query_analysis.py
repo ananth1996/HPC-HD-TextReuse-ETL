@@ -32,6 +32,7 @@ from plot_utils import log_binning
 import multiprocessing as mp
 import threading
 from time import perf_counter as time
+import csv
 # %%
 standard_query =text(f"""
 WITH filtered_clusters AS (
@@ -251,15 +252,31 @@ def get_samples(dataset: str, num_samples=10, seed=42, data_dir: Path = project_
     return df
 # %%
 
-def profile_query(engine, statement, edition_id, ground_truth, database, timeout=None, conn=None):
+def kill_query(engine,thread_id):
+    print(f"Killing trhead {thread_id}")
     with engine.connect() as conn:
-        if timeout:
-            conn.execute(text(f"SET SESSION max_statement_time={timeout}"))
+        conn.execute(
+                    text("kill :thread_id"), parameters={"thread_id": thread_id})
 
-        if "columnstore" not in database:
-            conn.execute(text("FLUSH NO_WRITE_TO_BINLOG TABLES source_piece_statistics_denorm,non_source_pieces,earliest_work_and_pieces_by_cluster,defrag_pieces,textreuse_edition_mapping,edition_authors,textreuse_work_mapping;"))
-        conn.execute(text("RESET QUERY CACHE;"))
-        try:
+def profile_query(engine, statement, edition_id, ground_truth, database, timeout=None, conn=None):
+    error = None
+    try:
+        with engine.connect() as conn:
+            columnstore_flag = "columnstore" in database 
+            columnstore_timeout = timeout is not None and columnstore_flag
+            rowstore_timeout = timeout is not None and not columnstore_flag 
+            if rowstore_timeout:
+                conn.execute(text(f"SET SESSION max_statement_time={timeout}"))
+
+            if not columnstore_flag:
+                conn.execute(text("FLUSH NO_WRITE_TO_BINLOG TABLES reception_edges_denorm,non_source_pieces,manifestation_ids,earliest_work_and_pieces_by_cluster,defrag_pieces,clustered_defrag_piecess;"))
+            conn.execute(text("RESET QUERY CACHE;"))
+
+            if columnstore_timeout:
+                thread_id = conn.connection.thread_id()
+                t = threading.Timer(timeout, lambda: kill_query(engine,thread_id))
+                t.start()
+
             start = time()
             sum_n_works= 0
             result =  conn.execute(
@@ -268,24 +285,26 @@ def profile_query(engine, statement, edition_id, ground_truth, database, timeout
             for row in result:
                 sum_n_works+=row.n_works
             duration = time() - start
+            if columnstore_timeout:
+                t.cancel()
             assert sum_n_works == ground_truth
-        except OperationalError as e:
+    except OperationalError as e:
             # print("Timeout")
             # print(e)
+            error = "OperationalError. Timeout"
             sum_n_works = None
-        except IndexError as e:
+    except IndexError as e:
             # print("ColumnStore Timeout")
             # print(e)
+            error = "IndexError"
             sum_n_works = None
-        except AssertionError as e:
-            if sum_n_works != 0:
-                print(f"Assertion Error. Query returns {sum_n_works}. Stat says: {ground_truth}")
-            else:
-                # print("Query killed. Returned 0.")
+    except AssertionError as e:
+            error = f"Assertion Error. Query returns {sum_n_works}. Stat says: {ground_truth}"
+            if sum_n_works == 0:
                 sum_n_works = None
-        if sum_n_works is None:
-            duration = None
-        return {"edition_id": edition_id, "duration": duration}
+    if sum_n_works is None:
+        duration = None
+    return {"edition_id": edition_id, "duration": duration,"error":error}
 
 # %%
 
@@ -308,45 +327,54 @@ def wrap_query_profile(kwargs):
     return extended_query_profile(**kwargs)
 
 
-def profile(timeout: Optional[float] = None):
-    param_grid = [
+def profile(param_grid:ParameterGrid,output_file:Path):
+    grid = list(param_grid)
+    with open(output_file, 'a+') as csvfile:
+        fieldnames = ["edition_id","duration","query_type","database","error"]
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        # go to beginning of file
+        csvfile.seek(0)
+        num_lines = len(csvfile.readlines())
+        if num_lines>1:
+            num_entries = num_lines-1
+            grid = grid[num_entries:]
+        else:
+            writer.writeheader()
+        # go to end of file
+        csvfile.seek(0,2)
+        for params in tqdm(grid, total=len(grid)):
+            result = wrap_query_profile(params)
+            writer.writerow(result)
+            csvfile.flush()
+# %%
+
+
+if __name__ == "__main__":
+    timeout = 900
+    # param_grid = ParameterGrid( {
+    #         "query_type":list(QUERY_TYPE_MAP.keys()),
+    #         "sample":list(get_samples("hpc-hd-newspapers")[["edition_id","ground_truth"]].itertuples(index=False,name=None)),
+    #         "database":["hpc-hd-newspapers","hpc-hd-newspapers-columnstore"],
+    #         "timeout":[timeout]
+    #     })
+    # output_file = project_root/"data"/"quote-queries-results-1.csv"
+    param_grid = ParameterGrid([
         {
             "query_type": list(QUERY_TYPE_MAP.keys()),
             "sample": list(get_samples("hpc-hd")[["edition_id", "ground_truth"]].itertuples(index=False, name=None)),
             "database":["hpc-hd","hpc-hd-columnstore"],
             "timeout":[timeout]
         },
-        {
-            "query_type":list(QUERY_TYPE_MAP.keys()),
-            "sample":list(get_samples("hpc-hd-newspapers")[["edition_id","ground_truth"]].itertuples(index=False,name=None)),
-            "database":["hpc-hd-newspapers","hpc-hd-newspapers-columnstore"],
-            "timeout":[timeout]
-        }
-    ]
-    grid = ParameterGrid(param_grid)
-
-    # with mp.Pool(processes=1) as pool:
-    #     rows = []
-    #     for result in tqdm(pool.imap_unordered(wrap_query_profile,grid), total=len(grid)):
-    #         rows.append(result)
-    rows = []
-    for params in tqdm(grid, total=len(grid)):
-        result = wrap_query_profile(params)
-        rows.append(result)
-    return pd.DataFrame(rows)
-# %%
-
-
-if __name__ == "__main__":
-    df = profile(900)
-    df.to_csv(project_root/"data"/"quote-queries-results-1.csv",index=False)
+    ])
+    output_file = project_root/"data"/"quote-queries-results-2.csv"
+    profile(param_grid=param_grid,output_file=output_file)
     #%%
-    # timeout = 120
+    # timeout = 10
     # param_grid = [
     #     {
-    #         "query_type": ["standard"],#list(QUERY_TYPE_MAP.keys()),
+    #         "query_type": ["denorm"],#list(QUERY_TYPE_MAP.keys()),
     #         "sample": list(get_samples("hpc-hd")[["edition_id", "ground_truth"]].itertuples(index=False, name=None)),
-    #         "database":["hpc-hd"],
+    #         "database":["hpc-hd","hpc-hd-columnstore"],
     #         "timeout":[timeout],
     #     },
     #     # {
@@ -356,6 +384,7 @@ if __name__ == "__main__":
     #     # }
     # ]
     # grid = ParameterGrid(param_grid)
+    # #%%
     # rows = []
     # for params in tqdm(grid, total=len(grid)):
     #     result = wrap_query_profile(params)
