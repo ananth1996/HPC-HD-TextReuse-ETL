@@ -107,12 +107,11 @@ QUERY_TABLES_MAP = {
 }
 # %%
 
-
 def time_query(spark, query_statement: str, doc_id: str, ground_truth: int, timeout=None):
     error = None
     try:
         if timeout is not None:
-            spark_timer = threading.Timer(timeout,spark.stop)
+            spark_timer = threading.Timer(timeout,spark.sparkContext.cancelAllJobs)
         spark_timer.start()
         start = time()
         df = spark.sql(query_statement.format(doc_id=doc_id))
@@ -204,24 +203,25 @@ def profile(timeout: Optional[float] = None):
 if __name__ == "__main__":
     profile(300)
     #%%
-    # timeout = 300
-    # param_grid = [
-    #     # {
-    #     #     "query_type": list(QUERY_TYPE_MAP.keys()),
-    #     #     "sample": list(get_samples("hpc-hd")[["manifestation_id", "ground_truth"]].itertuples(index=False, name=None)),
-    #     #     "dataset":["hpc-hd"],
-    #     #     "case":["reception"],
-    #     #     "timeout":[timeout],
-    #     # },
-    #     {
-    #         "query_type": list(QUERY_TYPE_MAP.keys()),
-    #         "sample": list(get_samples("hpc-hd-newspapers")[["manifestation_id", "ground_truth"]].itertuples(index=False, name=None)),
-    #         "dataset":["hpc-hd-newspapers"],
-    #         "case":["reception"],
-    #         "timeout":[timeout],
-    #     }
-    # ]
-    # grid = ParameterGrid(param_grid)
-    # #%%
-    # wrap_query_profile(grid[0])
+    timeout = 10
+    param_grid = [
+        # {
+        #     "query_type": list(QUERY_TYPE_MAP.keys()),
+        #     "sample": list(get_samples("hpc-hd")[["manifestation_id", "ground_truth"]].itertuples(index=False, name=None)),
+        #     "dataset":["hpc-hd"],
+        #     "case":["reception"],
+        #     "timeout":[timeout],
+        # },
+        {
+            "query_type": list(QUERY_TYPE_MAP.keys()),
+            "sample": list(get_samples("hpc-hd-newspapers")[["manifestation_id", "ground_truth"]].itertuples(index=False, name=None)),
+            "dataset":["hpc-hd-newspapers"],
+            "case":["reception"],
+            "timeout":[timeout],
+        }
+    ]
+    grid = ParameterGrid(param_grid)
+    #%%
+    print(wrap_query_profile(grid[1]))
+    print(wrap_query_profile(grid[2]))
 # %%
