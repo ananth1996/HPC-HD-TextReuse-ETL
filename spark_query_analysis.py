@@ -139,7 +139,7 @@ def time_query(spark, query_statement: str, doc_id: str, ground_truth: int, time
         assert rows == ground_truth
     except AssertionError as e:
         error = (f"Assertion Error. {rows=} and {ground_truth=}")
-        duration = None
+        # duration = None   
     except Py4JJavaError as e:
         error = "Py4JJavaError. Timeout"
         duration = None
@@ -163,7 +163,7 @@ def profile_sample(query_type: str, sample: Tuple[str, int], dataset:str, case: 
                            ground_truth, timeout=timeout)
     result.update({
         "query_type": query_type,
-        "dataset": dataset
+        "database": dataset+"-spark"
     }
     )
     return result
@@ -192,7 +192,7 @@ def profile(timeout: Optional[float] = None):
     grid = list(ParameterGrid(param_grid))
 
     rows = []
-    with open(project_root/"data"/"reception-queries-results-1.csv", 'a+') as csvfile:
+    with open(project_root/"data"/"reception-queries-results-3.csv", 'a+') as csvfile:
         fieldnames = ["doc_id","duration","query_type","database","error"]
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         # go to beginning of file
@@ -201,7 +201,7 @@ def profile(timeout: Optional[float] = None):
         if num_lines>1:
             num_entries = num_lines-1
             grid = grid[num_entries:]
-        else:
+        elif num_lines==0:
             writer.writeheader()
         # go to end of file
         csvfile.seek(0,2)
