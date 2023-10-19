@@ -92,18 +92,6 @@ QUERY_TYPE_MAP = {
     "intermediate": intermediate_query,
     "standard":standard_query
 }
-BUCKETS_MAP = {
-    "hpc-hd": {
-        "processed_bucket": "textreuse-processed-data",
-        "raw_bucket": "textreuse-raw-data",
-        "denorm_bucket": "textreuse-denormalized-data",
-    },
-    "hpc-hd-newspapers": {
-        "processed_bucket": "textreuse-new-processed-data",
-        "raw_bucket": "textreuse-raw-data",
-        "denorm_bucket": "textreuse-new-denormalized-data",
-    }
-}
 
 QUERY_TABLES_MAP = {
     "reception": {
