@@ -181,20 +181,21 @@ def get_running_times(query,dataset,data_dir=project_root/"data"):
         df = df.rename(columns={"database":"TABLE_SCHEMA"})
         df["TABLE_SCHEMA"] = df.TABLE_SCHEMA.apply(lambda s: s+"-rowstore" if dataset==s else s)
     elif query == "quote":
-        df = pd.read_csv(data_dir/"quote-queries-results-1.csv")
+        dfs = []
+        for file in data_dir.glob("quote-queries-results*"):
+            print(file)
+            dfs.append(pd.read_csv(file))
+        df = pd.concat(dfs)
         df = df[df.database.isin([dataset,dataset+"-columnstore"])]
-        if dataset == "hpc-hd":
-            samples = pd.read_csv(data_dir/f"{dataset}-quotes-samples-orig.csv")
-        else:
-            samples = pd.read_csv(data_dir/f"{dataset}-quotes-samples.csv")
+        samples = pd.read_csv(data_dir/f"{dataset}-quotes-samples.csv")
         df = df.merge(samples,on="edition_id")
         df = df.rename(columns={"database":"TABLE_SCHEMA"})
-    
+        df["TABLE_SCHEMA"] = df.TABLE_SCHEMA.apply(lambda s: s+"-rowstore" if dataset==s else s)
     return df
 
 #%%
 dataset = "hpc-hd"
-query = "reception"
+query = "quote"
 sizes = load_table_sizes(dataset)
 #%%
 sizes.groupby("TABLE_SCHEMA").total_size.sum().plot(kind="bar")
