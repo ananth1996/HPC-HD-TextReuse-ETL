@@ -25,8 +25,31 @@ else:
 import sys
 sys.path.append(str(project_root))
 import mariadb_quote_query_analysis as quote_analysis
-# from spark_utils import *
+from spark_utils_alternate import get_spark_session,BUCKETS_MAP,TABLES_MAP,get_s3_parquet_size
 # %%
+
+def load_spark_table_sizes(dataset: str, data_dir: Path = project_root/"data", replace: bool = False):
+    size_file = data_dir/f"{dataset}-saprk-table-sizes.csv"
+    database = dataset + "-spark"
+    if not size_file.exists() or replace:
+        spark = get_spark_session(application_name="sizes")
+        rows = []
+        for table,_bucket in TABLES_MAP[dataset]:
+            bucket = BUCKETS_MAP[dataset][_bucket]
+            fsize = get_s3_parquet_size(spark,table,bucket)
+            rows.append({
+                "TABLE_SCHEMA":database,
+                "TABLE_NAME":table,
+                "total_size":fsize
+            })
+        sizes = pd.DataFrame(rows)
+        sizes.to_csv(size_file, index=False)
+        spark.stop()
+    else:
+        sizes = pd.read_csv(size_file)
+    return sizes
+#%%
+
 def load_row_store_table_sizes(dataset: str, data_dir: Path = project_root/"data", replace: bool = False):
     size_file = data_dir/f"{dataset}-aria-table-sizes.csv"
     if not size_file.exists() or replace:
@@ -64,31 +87,35 @@ def load_columnstore_store_table_sizes(dataset: str, data_dir: Path = project_ro
 
 def load_table_sizes(dataset, replace: bool = False):
     size_multiple = {"MB": 1024**2, "GB": 1024**3, "KB":1024}
-    newspapers_columnstore_sizes = load_columnstore_store_table_sizes(
+    columnstore_sizes = load_columnstore_store_table_sizes(
         dataset, replace=replace)
-    newspapers_columnstore_sizes[[
-        "size_number", "unit"]] = newspapers_columnstore_sizes.TOTAL_USAGE.str.split(expand=True)
-    newspapers_columnstore_sizes.size_number = newspapers_columnstore_sizes.size_number.astype(
+    columnstore_sizes[[
+        "size_number", "unit"]] = columnstore_sizes.TOTAL_USAGE.str.split(expand=True)
+    columnstore_sizes.size_number = columnstore_sizes.size_number.astype(
         float)
-    newspapers_columnstore_sizes["total_size"] = newspapers_columnstore_sizes["size_number"].multiply(
-        newspapers_columnstore_sizes["unit"].apply(lambda s: size_multiple[s]))
-    newspapers_columnstore_sizes["total_data_size"] = newspapers_columnstore_sizes.total_size
-    newspapers_columnstore_sizes["total_index_size"] = 0
+    columnstore_sizes["total_size"] = columnstore_sizes["size_number"].multiply(
+        columnstore_sizes["unit"].apply(lambda s: size_multiple[s]))
+    columnstore_sizes["total_data_size"] = columnstore_sizes.total_size
+    columnstore_sizes["total_index_size"] = 0
 
-    newspapers_aria_sizes = load_row_store_table_sizes(
+    aria_sizes = load_row_store_table_sizes(
         dataset, replace=replace)
-    newspapers_aria_sizes["total_size"] = newspapers_aria_sizes[
+    aria_sizes["total_size"] = aria_sizes[
         "Total Size (MB)"]*size_multiple["MB"]
-    newspapers_aria_sizes["total_data_size"] = newspapers_aria_sizes[
+    aria_sizes["total_data_size"] = aria_sizes[
         "Data Size (MB)"]*size_multiple["MB"]
-    newspapers_aria_sizes["total_index_size"] = newspapers_aria_sizes[
+    aria_sizes["total_index_size"] = aria_sizes[
         "Index Size (MB)"]*size_multiple["MB"]
+    aria_sizes["TABLE_SCHEMA"] = aria_sizes.TABLE_SCHEMA.apply(lambda dataset:f"{dataset}-rowstore")
+
+    spark_sizes = load_spark_table_sizes(dataset, replace=replace)
 
     columns = ["TABLE_SCHEMA", "TABLE_NAME", "total_size",
                "total_data_size", "total_index_size"]
     df = pd.concat([
-        newspapers_columnstore_sizes[columns],
-        newspapers_aria_sizes[columns],
+        columnstore_sizes[columns],
+        aria_sizes[columns],
+        spark_sizes
     ])
     return df
 
@@ -145,29 +172,31 @@ def get_running_times(query,dataset,data_dir=project_root/"data"):
     if query == "reception":
         dfs = []
         for file in data_dir.glob("reception-queries-results*"):
+            print(file)
             dfs.append(pd.read_csv(file))
         df = pd.concat(dfs)
-        df = df[df.database.isin([dataset,dataset+"-columnstore"])]
+        df = df[df.database.isin([dataset,dataset+"-columnstore",dataset+"-spark"])]
         samples = pd.read_csv(data_dir/f"{dataset}-samples.csv")
         df = df.merge(samples,left_on="doc_id",right_on="manifestation_id")
         df = df.rename(columns={"database":"TABLE_SCHEMA"})
+        df["TABLE_SCHEMA"] = df.TABLE_SCHEMA.apply(lambda s: s+"-rowstore" if dataset==s else s)
     elif query == "quote":
-        df = pd.read_csv(data_dir/"quote-queries-results-1.csv")
+        dfs = []
+        for file in data_dir.glob("quote-queries-results*"):
+            print(file)
+            dfs.append(pd.read_csv(file))
+        df = pd.concat(dfs)
         df = df[df.database.isin([dataset,dataset+"-columnstore"])]
-        if dataset == "hpc-hd":
-            samples = pd.read_csv(data_dir/f"{dataset}-quotes-samples-orig.csv")
-        else:
-            samples = pd.read_csv(data_dir/f"{dataset}-quotes-samples.csv")
+        samples = pd.read_csv(data_dir/f"{dataset}-quotes-samples.csv")
         df = df.merge(samples,on="edition_id")
         df = df.rename(columns={"database":"TABLE_SCHEMA"})
-
+        df["TABLE_SCHEMA"] = df.TABLE_SCHEMA.apply(lambda s: s+"-rowstore" if dataset==s else s)
     return df
 
 #%%
 dataset = "hpc-hd"
-query = "reception"
+query = "quote"
 sizes = load_table_sizes(dataset)
-sizes["TABLE_SCHEMA"] = sizes.TABLE_SCHEMA.apply(lambda s: s if "columnstore" in s else s + "-rowstore" )
 #%%
 sizes.groupby("TABLE_SCHEMA").total_size.sum().plot(kind="bar")
 plt.gca().yaxis.set_major_formatter(tkr.FuncFormatter(sizeof_fmt))
@@ -184,10 +213,10 @@ plt.gca().xaxis.set_major_formatter(tkr.FuncFormatter(sizeof_fmt))
 plt.legend(bbox_to_anchor=(1, 0.5), loc="upper left")
 plt.title("Table Sizes (Data + Indexes)")
 plt.xlabel("Sizes (log scale)")
-query_table_sizes = get_query_types_table_sizes(query,sizes)
 #%%
+query_table_sizes = get_query_types_table_sizes(query,sizes)
 running_times = get_running_times(query,dataset)
-running_times["TABLE_SCHEMA"] = running_times.TABLE_SCHEMA.apply(lambda s: s if "columnstore" in s else s + "-rowstore" )
+#%%
 running_times = running_times.merge(
     query_table_sizes, on=["TABLE_SCHEMA", "query_type"])
 # %%
@@ -201,7 +230,7 @@ else:
     _df = running_times
 hue = _df[['query_type', 'TABLE_SCHEMA']].apply(
     lambda row: f"{row.query_type}, {row.TABLE_SCHEMA}", axis=1)
-hue.name = 'query_type, query_type'
+hue.name = 'query_type, TABLE_SCHEMA'
 sns.pointplot(data=_df, x="total_size", y="duration", hue=hue,native_scale=True,log_scale=[2,False])
 plt.yscale("log")
 ticks = [s for s in _df.total_size.unique()]
@@ -213,6 +242,13 @@ plt.ylabel("Query Duration (in sec)")
 #%%
 sns.catplot(data=running_times,col="TABLE_SCHEMA",x="query_dists_id",y="duration",hue="query_type",kind="bar")
 plt.yscale("log")
+#%%
+
+
+
+
+
+
 #%%
 hpc_hd_stats = quote_analysis.get_statistics("hpc-hd-newspapers",threshold=0)
 hpc_hd_samples = quote_analysis.get_samples("hpc-hd-newspapers")

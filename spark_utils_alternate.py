@@ -11,6 +11,82 @@ from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.types import StructField, StructType, LongType
 
 # the buckets
+BUCKETS_MAP = {
+    "hpc-hd": {
+        "processed_bucket": "textreuse-processed-data",
+        "raw_bucket": "textreuse-raw-data",
+        "denorm_bucket": "textreuse-denormalized-data",
+    },
+    "hpc-hd-newspapers": {
+        "processed_bucket": "textreuse-new-processed-data",
+        "raw_bucket": "textreuse-raw-data",
+        "denorm_bucket": "textreuse-new-denormalized-data",
+    }
+}
+
+TABLES_MAP ={
+    "hpc-hd":[
+    ("textreuse_ids","processed_bucket"),
+    ("manifestation_ids","processed_bucket"),
+    ("edition_ids","processed_bucket"),
+    ("work_ids","processed_bucket"),
+    ("actor_ids","processed_bucket"),
+    ("textreuse_work_mapping","processed_bucket"),
+    ("textreuse_edition_mapping","processed_bucket"),
+    ("work_mapping","processed_bucket"),
+    ("edition_mapping","processed_bucket"),
+    ("edition_publication_year","processed_bucket"),
+    ("work_earliest_publication_year","processed_bucket"),
+    ("textreuse_earliest_publication_year","processed_bucket"),
+    ("edition_authors","processed_bucket"),
+    ("estc_core","raw_bucket"),
+    ("ecco_core","raw_bucket"),
+    ("eebo_core","raw_bucket"),
+    ("newspapers_core","raw_bucket"),
+    ("estc_actor_links","raw_bucket"),
+    ("estc_actors","raw_bucket"),
+    ("defrag_pieces","processed_bucket"),
+    ("defrag_textreuses","processed_bucket"),
+    ("clustered_defrag_pieces","processed_bucket"),
+    ("earliest_textreuse_by_cluster","processed_bucket"),
+    ("earliest_work_and_pieces_by_cluster","processed_bucket"),
+    ("reception_edges_denorm","denorm_bucket"),
+    ("source_piece_statistics_denorm","denorm_bucket"),
+    ("coverages","processed_bucket"),
+    ],
+    "hpc-hd-newspapers":[
+    ("textreuse_ids","processed_bucket"),
+    ("manifestation_ids","processed_bucket"),
+    ("edition_ids","processed_bucket"),
+    ("work_ids","processed_bucket"),
+    ("actor_ids","processed_bucket"),
+    ("textreuse_work_mapping","processed_bucket"),
+    ("textreuse_edition_mapping","processed_bucket"),
+    ("work_mapping","processed_bucket"),
+    ("edition_mapping","processed_bucket"),
+    ("edition_publication_date","processed_bucket"),
+    ("work_earliest_publication_date","processed_bucket"),
+    ("textreuse_earliest_publication_date","processed_bucket"),
+    ("textreuse_source_lengths","processed_bucket"),
+    ("edition_authors","processed_bucket"),
+    ("estc_core","raw_bucket"),
+    ("ecco_core","raw_bucket"),
+    ("eebo_core","raw_bucket"),
+    ("newspapers_core","raw_bucket"),
+    ("estc_actor_links","raw_bucket"),
+    ("estc_actors","raw_bucket"),
+    ("defrag_pieces","processed_bucket"),
+    ("defrag_textreuses","processed_bucket"),
+    ("clustered_defrag_pieces","processed_bucket"),
+    ("earliest_textreuse_by_cluster","processed_bucket"),
+    ("earliest_work_and_pieces_by_cluster","processed_bucket"),
+    ("reception_edges_denorm","denorm_bucket"),
+    ("source_piece_statistics_denorm","denorm_bucket"),
+    ("coverages","processed_bucket"),
+    ("textreuse_sources","processed_bucket"),
+    ]
+} 
+
 
 def get_spark_session(application_name:str="ETL",project_root:Path=project_root):
     # 
@@ -94,6 +170,15 @@ def get_hadoop_filesystem(spark:SparkSession,path:str):
         sc._jvm.java.net.URI.create(path), sc._jsc.hadoopConfiguration()
     )
     return fs
+
+
+def get_filesize(spark:SparkSession,path:str):
+    fs = get_hadoop_filesystem(spark,path)
+    return fs.getContentSummary(get_hadoop_path(spark,path)).getLength()
+
+def get_s3_parquet_size(spark,fname,bucket):
+    path = f"s3a://{bucket}/{fname}.parquet"
+    return get_filesize(spark,path)
 
 def get_hadoop_path(spark:SparkSession,path:str):
     return spark.sparkContext._jvm.org.apache.hadoop.fs.Path(path)
