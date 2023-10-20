@@ -107,11 +107,16 @@ QUERY_TABLES_MAP = {
 }
 # %%
 
+
+def stop_query(spark):
+    spark.sparkContext.cancelAllJobs()
+    raise Py4JJavaError("TimeOut")
+
 def time_query(spark, query_statement: str, doc_id: str, ground_truth: int, timeout=None):
     error = None
     try:
         if timeout is not None:
-            spark_timer = threading.Timer(timeout,spark.sparkContext.cancelAllJobs)
+            spark_timer = threading.Timer(timeout,lambda : stop_query(spark))
         spark_timer.start()
         start = time()
         df = spark.sql(query_statement.format(doc_id=doc_id))
@@ -203,15 +208,15 @@ def profile(timeout: Optional[float] = None):
 if __name__ == "__main__":
     profile(300)
     #%%
-    # timeout = 10
+    # timeout = 90
     # param_grid = [
-    #     # {
-    #     #     "query_type": list(QUERY_TYPE_MAP.keys()),
-    #     #     "sample": list(get_samples("hpc-hd")[["manifestation_id", "ground_truth"]].itertuples(index=False, name=None)),
-    #     #     "dataset":["hpc-hd"],
-    #     #     "case":["reception"],
-    #     #     "timeout":[timeout],
-    #     # },
+    #     {
+    #         "query_type": list(QUERY_TYPE_MAP.keys()),
+    #         "sample": list(get_samples("hpc-hd")[["manifestation_id", "ground_truth"]].itertuples(index=False, name=None)),
+    #         "dataset":["hpc-hd"],
+    #         "case":["reception"],
+    #         "timeout":[timeout],
+    #     },
     #     {
     #         "query_type": list(QUERY_TYPE_MAP.keys()),
     #         "sample": list(get_samples("hpc-hd-newspapers")[["manifestation_id", "ground_truth"]].itertuples(index=False, name=None)),
@@ -220,8 +225,8 @@ if __name__ == "__main__":
     #         "timeout":[timeout],
     #     }
     # ]
-    # grid = ParameterGrid(param_grid)
+    # grid = list(ParameterGrid(param_grid))
     # #%%
-    # print(wrap_query_profile(grid[1]))
+    # print(wrap_query_profile(grid[394]))
     # print(wrap_query_profile(grid[2]))
 # %%
