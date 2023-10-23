@@ -106,6 +106,10 @@ ALTER TABLE `reception_edges_denorm`
 ADD INDEX IF NOT EXISTS `src_trs_id` (`src_trs_id`),
 ADD INDEX IF NOT EXISTS `dst_trs_id` (`dst_trs_id`);
 
+ALTER TABLE `reception_edges`
+ADD INDEX IF NOT EXISTS `src` (`src_piece_id`),
+ADD INDEX IF NOT EXISTS `dst` (`dst_piece_id`);
+
 ALTER TABLE `coverages`
 ADD INDEX IF NOT EXISTS `trs1_composite` (`trs1_id`,`trs2_id`),
 ADD INDEX IF NOT EXISTS `trs2_composite` (`trs2_id`,`trs1_id`);
@@ -114,6 +118,10 @@ ALTER TABLE `source_piece_statistics_denorm`
 ADD INDEX IF NOT EXISTS `piece_id` (`piece_id`),
 ADD INDEX IF NOT EXISTS `edition_id_i` (`edition_id_i`),
 ADD INDEX IF NOT EXISTS `trs_id` (`trs_id`),
+ADD INDEX IF NOT EXISTS `piece_length` (`piece_length`);
+
+ALTER TABLE `source_piece_statistics`
+ADD PRIMARY KEY (`piece_id`),
 ADD INDEX IF NOT EXISTS `piece_length` (`piece_length`);
 
 ALTER TABLE `textreuse_sources`

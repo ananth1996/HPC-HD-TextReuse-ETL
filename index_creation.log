@@ -53,3 +53,10 @@ ALTER TABLE `source_piece_statistics_denorm`
     -> ADD INDEX IF NOT EXISTS `piece_length` (`piece_length`);
 Query OK, 90144871 rows affected (7 min 9.914 sec)
 Records: 90144871  Duplicates: 0  Warnings: 0
+
+
+ALTER TABLE `source_piece_statistics`
+    -> ADD PRIMARY KEY (`piece_id`),
+    -> ADD INDEX IF NOT EXISTS `piece_length` (`piece_length`);
+Query OK, 89317769 rows affected (5 min 47.772 sec)
+Records: 89317769  Duplicates: 0  Warnings: 0

@@ -284,6 +284,11 @@ CREATE TABLE IF NOT EXISTS `earliest_work_and_pieces_by_cluster` (
     `piece_id` bigint(20) unsigned NOT NULL
 )ENGINE=Aria PAGE_CHECKSUM=0 TRANSACTIONAL=0;
 
+CREATE TABLE IF NOT EXISTS `reception_edges` (
+  `src_piece_id` bigint(20) unsigned NOT NULL,
+  `dst_piece_id` bigint(20) unsigned NOT NULL
+) ENGINE=Aria PAGE_CHECKSUM=0 TRANSACTIONAL=0;
+
 CREATE TABLE IF NOT EXISTS `reception_edges_denorm` (
   `src_trs_id` int(11) unsigned NOT NULL,
   `src_trs_start` int(11) unsigned NOT NULL,
@@ -292,6 +297,15 @@ CREATE TABLE IF NOT EXISTS `reception_edges_denorm` (
   `dst_trs_start` int(11) unsigned NOT NULL,
   `dst_trs_end` int(11) unsigned NOT NULL
 ) ENGINE=Aria PAGE_CHECKSUM=0 TRANSACTIONAL=0;
+
+CREATE TABLE IF NOT EXISTS `source_piece_statistics` (
+    `piece_id` bigint(20) unsigned NOT NULL,
+    `cluster_id` int(11) unsigned NOT NULL,
+    `piece_length` int(11) unsigned NOT NULL,
+    `num_reception_edges` bigint(20) unsigned NOT NULL,
+    `num_different_work_ids` int(11) unsigned NOT NULL,
+    `num_work_ids_different_authors` int(11) unsigned NOT NULL
+)ENGINE=Aria PAGE_CHECKSUM=0 TRANSACTIONAL=0;
 
 CREATE TABLE IF NOT EXISTS `source_piece_statistics_denorm` (
     `piece_id` bigint(20) unsigned NOT NULL,
