@@ -25,6 +25,7 @@ else:
 import sys
 sys.path.append(str(project_root))
 import mariadb_quote_query_analysis as quote_analysis
+import mariadb_query_analysis as reception_analysis
 from spark_utils_alternate import get_spark_session,BUCKETS_MAP,TABLES_MAP,get_s3_parquet_size
 # %%
 
@@ -186,33 +187,40 @@ def get_running_times(query,dataset,data_dir=project_root/"data"):
             print(file)
             dfs.append(pd.read_csv(file))
         df = pd.concat(dfs)
-        df = df[df.database.isin([dataset,dataset+"-columnstore"])]
+        df = df[df.database.isin([dataset,dataset+"-columnstore",dataset+"-spark"])]
         samples = pd.read_csv(data_dir/f"{dataset}-quotes-samples.csv")
         df = df.merge(samples,on="edition_id")
         df = df.rename(columns={"database":"TABLE_SCHEMA"})
         df["TABLE_SCHEMA"] = df.TABLE_SCHEMA.apply(lambda s: s+"-rowstore" if dataset==s else s)
     return df
 
+
 #%%
-dataset = "hpc-hd"
+
+def plot_sizes(sizes,dataset):
+    sizes.groupby("TABLE_SCHEMA").total_size.sum().plot(kind="bar")
+    plt.gca().yaxis.set_major_formatter(tkr.FuncFormatter(sizeof_fmt))
+    plt.title(f"{dataset.title()} Total sizes")
+    plt.xticks(rotation=90)
+    plt.ylabel(f"Total Size on Disk")
+    plt.xlabel("Database")
+    plt.figure(figsize=(10, 10))
+    sns.barplot(data=sizes, y="TABLE_NAME", x="total_size",
+                hue="TABLE_SCHEMA", orient='h')
+    plt.xscale("log", base=2)
+    plt.gca().xaxis.set_major_formatter(tkr.FuncFormatter(sizeof_fmt))
+    # plt.xticks(rotation=90)
+    plt.legend(bbox_to_anchor=(1, 0.5), loc="upper left")
+    plt.title(f"{dataset.title()} Table Sizes (Data + Indexes)")
+    plt.xlabel("Sizes (log scale)")
+
+
+#%%
+dataset = "hpc-hd-newspapers"
 query = "quote"
 sizes = load_table_sizes(dataset)
 #%%
-sizes.groupby("TABLE_SCHEMA").total_size.sum().plot(kind="bar")
-plt.gca().yaxis.set_major_formatter(tkr.FuncFormatter(sizeof_fmt))
-plt.title("Database Total sizes")
-plt.xticks(rotation=0)
-plt.ylabel("Size")
-plt.xlabel("Database")
-plt.figure(figsize=(10, 10))
-sns.barplot(data=sizes, y="TABLE_NAME", x="total_size",
-            hue="TABLE_SCHEMA", orient='h')
-plt.xscale("log", base=2)
-plt.gca().xaxis.set_major_formatter(tkr.FuncFormatter(sizeof_fmt))
-# plt.xticks(rotation=90)
-plt.legend(bbox_to_anchor=(1, 0.5), loc="upper left")
-plt.title("Table Sizes (Data + Indexes)")
-plt.xlabel("Sizes (log scale)")
+plot_sizes(sizes,dataset)
 #%%
 query_table_sizes = get_query_types_table_sizes(query,sizes)
 running_times = get_running_times(query,dataset)
@@ -222,6 +230,8 @@ running_times = running_times.merge(
 # %%
 if dataset == "hpc-hd-newspapers" and query == "quote":
     _df = running_times.query("query_dists_id<7")
+elif dataset == "hpc-hd" and query == "quote":
+    _df = running_times.query("query_dists_id<10")
 elif dataset == "hpc-hd" and query == "reception":
     _df = running_times.query("query_dists_id<9")
 elif dataset == "hpc-hd-newspapers" and query == "reception":
@@ -239,13 +249,11 @@ plt.xticks(labels=labels,ticks=ticks,rotation=90,minor=False)
 plt.legend(bbox_to_anchor=(1,0.5),loc="center left",title=hue.name)
 plt.xlabel("Disk Size Used (Tables + Indexes)")
 plt.ylabel("Query Duration (in sec)")
+plt.title(f"{dataset.title()} dataset and {query.title()} use-case")
 #%%
 sns.catplot(data=running_times,col="TABLE_SCHEMA",x="query_dists_id",y="duration",hue="query_type",kind="bar")
 plt.yscale("log")
 #%%
-
-
-
 
 
 
