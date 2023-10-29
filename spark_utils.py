@@ -4,6 +4,8 @@ import toml
 import findspark
 from typing import *
 import os
+os.environ['PYSPARK_PYTHON'] = str(project_root/".venv/bin/python")
+findspark.init()
 from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.types import StructField, StructType, LongType
@@ -13,10 +15,8 @@ processed_bucket = "textreuse-new-processed-data"
 raw_bucket = "textreuse-raw-data"
 denorm_bucket = "textreuse-new-denormalized-data"
 
-def start_spark_app(project_root:Path,application_name:str="ETL"):
-    os.environ['PYSPARK_PYTHON'] = str(project_root/".venv/bin/python")
+def start_spark_app(project_root:Path,application_name:str="ETL"):    
     #findspark.add_packages("graphframes:graphframes:0.8.2-spark3.2-s_2.12")
-    findspark.init()
     spark = (SparkSession
             .builder
             .appName("ETL")
