@@ -126,3 +126,9 @@ ADD INDEX IF NOT EXISTS `piece_length` (`piece_length`);
 
 ALTER TABLE `textreuse_sources`
 ADD PRIMARY KEY (`trs_id`);
+
+ALTER TABLE `reception_inception_coverages`
+ADD INDEX IF NOT EXISTS `src_trs_id` (`src_trs_id`),
+ADD INDEX IF NOT EXISTS `reception` (`coverage_src_in_dst`),
+ADD INDEX IF NOT EXISTS `dst_trs_id` (`dst_trs_id`);
+ADD INDEX IF NOT EXISTS `inception` (`coverage_dst_in_src`),

@@ -334,6 +334,19 @@ CREATE TABLE IF NOT EXISTS `coverages` (
     `coverage_t2_t1` double unsigned DEFAULT NULL
 )ENGINE=Aria PAGE_CHECKSUM=0 TRANSACTIONAL=0;
 
+CREATE TABLE IF NOT EXISTS `reception_inception_coverages` (
+`src_trs_id` int(11) unsigned NOT NULL,
+`num_reuses_src` int(11) unsigned DEFAULT NULL,
+`reuses_src_in_dst` int(11) unsigned DEFAULT NULL,
+`src_length` int(11) unsigned DEFAULT NULL,
+`coverage_src_in_dst` double unsigned DEFAULT NULL,
+`dst_trs_id` int(11) unsigned NOT NULL,
+`num_reuses_dst` int(11) unsigned DEFAULT NULL,
+`reuses_dst_in_src` int(11) unsigned DEFAULT NULL,
+`dst_length` int(11) unsigned DEFAULT NULL,
+`coverage_dst_in_src` double unsigned DEFAULT NULL
+)ENGINE=Aria PAGE_CHECKSUM=0 TRANSACTIONAL=0;
+
 
 CREATE TABLE IF NOT EXISTS `textreuse_sources` (
     `trs_id` int(11) unsigned NOT NULL,
