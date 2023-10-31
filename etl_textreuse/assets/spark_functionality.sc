@@ -1,5 +1,6 @@
 // load spark jars
-interp.load.cp(os.list(os.root/"Users"/"mahadeva"/"Research"/"etl_textreuse"/".venv"/"lib"/"python3.10"/"site-packages"/"pyspark"/"jars"))
+// interp.load.cp(os.list(os.root/"Users"/"mahadeva"/"Research"/"etl_textreuse"/".venv"/"lib"/"python3.10"/"site-packages"/"pyspark"/"jars"))
+interp.load.cp(os.list(os.root/'usr/'local/'spark/'jars))
 import coursierapi.MavenRepository
 
 interp.repositories.update(
@@ -16,10 +17,9 @@ import scala.collection.JavaConverters._
 def getSpark(): SparkSession = {
     import org.apache.spark.sql.almondinternals.NotebookSparkSessionBuilder
     val sparkConf = new org.apache.spark.SparkConf()
-    // val properties = new java.util.Properties()
-    // properties.load(scala.io.Source.fromFile("/Users/mahadeva/Research/etl_textreuse/spark_functionality.sc").bufferedReader)
-    // sparkConf.setAll(properties.asScala)
-    sparkConf.set("spark.sql.warehouse.dir","/Users/mahadeva/spark-warehouse")
+    val properties = new java.util.Properties()
+    properties.load(scala.io.Source.fromFile("/usr/local/spark/conf/spark-defaults.conf").bufferedReader)
+    sparkConf.setAll(properties.asScala)
     val spark = { 
         new NotebookSparkSessionBuilder() {
             override def config(key: String, value: String) = {
@@ -29,7 +29,7 @@ def getSpark(): SparkSession = {
                     super.config(key,value)
             }    
         }
-        .master("local[*]")
+        //.master("local[*]")
         .config(sparkConf)
         .getOrCreate() 
     }
@@ -38,7 +38,8 @@ def getSpark(): SparkSession = {
     spark.sparkContext.hadoopConfiguration.set("fs.s3a.secret.key",sys.env("AWS_SECRET_KEY"))
     spark.sparkContext.hadoopConfiguration.set("fs.s3a.endpoint",sys.env("AWS_ENDPOINT_URL"))
     spark.sparkContext.hadoopConfiguration.set("fs.s3a.path.style.access","true")
-    spark.sparkContext.setCheckpointDir("/Users/mahadeva/spark-checkpoint")
+    spark.sparkContext.setCheckpointDir("/home/jovyan/work/spark-checkpoint")    
+    //spark.sparkContext.setCheckpointDir("/Users/mahadeva/spark-checkpoint")
     spark
     
 }
@@ -95,7 +96,7 @@ def get_partitioned(table: String, column: String, numPartitions: Int = 200): Da
 
 val a3s_url = "s3a://"
 
-val processed_bucket = "textreuse-dagster-test/"
+val processed_bucket = "textreuse-dagster-rahti/"
 
 val a3s_path = a3s_url+processed_bucket
 
@@ -190,14 +191,8 @@ def dfZipWithIndex(
 }
 
 def materialise_row_numbers(fname:String,df:DataFrame,col_name:String){
-    // if already exists then just load
-    if (a3s_path_exists(a3s_path+fname+".parquet")){
-        return get_a3s(fname)
-    }
-    else{
-        //Write dataframe with row numbers to correct location
-        return materialise_a3s(fname,dfZipWithIndex(df,1,col_name))
-    }
-    
+    //Write dataframe with row numbers to correct location
+    materialise_a3s(fname,dfZipWithIndex(df,1,col_name))
+  
 }
 

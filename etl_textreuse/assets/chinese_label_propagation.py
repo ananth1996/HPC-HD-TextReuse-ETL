@@ -74,7 +74,7 @@ def clusters() -> Output[None]:
     # %%
     # TODO have a way to feed in the current iteration count from file
     # TODO allow it to resume from previous iteration
-    iter = 0
+    iter = 19
     adjacency_list = read_checkpoint("adjacency_list")
     if iter == 0:
         clusters_counts = (adjacency_list
@@ -101,7 +101,7 @@ def clusters() -> Output[None]:
     pbar = tqdm(initial=total-active_count, total=total, unit="piece",
                 dynamic_ncols=True, unit_scale=True, unit_divisor=1000, smoothing=1)
 
-    while active_count > 0 and iter < 10:
+    while active_count > 0 and iter < 100:
         pbar.n = total - active_count
         pbar.set_description(f"{iter}")
         print()

@@ -78,7 +78,7 @@ zip_file = SourceAsset(key=AssetKey("raw_texreuses_zip"),
     group_name="textreuses"
 )
 def raw_textreuses() -> None:
-    fname = "newspapers_run_sample.zip"
+    fname = "tr_data_out_all.zip"
     num_partitions = 200
     # load credentials for Pouta s3 storage
     with open(project_root/"s3credentials.toml", "r") as fp:

@@ -15,7 +15,7 @@ def piece_id_mappings() -> None:
     process = subprocess.run(["jupyter", "nbconvert", "--to", "notebook",
                               "--inplace", "--execute", str(project_root/"etl_textreuse"/"assets"/"piece_id_mappings.ipynb")], capture_output=True)
     if process.returncode != 0:
-        raise ChildProcessError(f"Error Running Notebook {process.stdout}")
+        raise ChildProcessError(f"Error Running Notebook {process.stdout} {process.stderr}")
     else:
         print(process.stderr)
         print(process.stdout)
