@@ -21,28 +21,8 @@ def db_manifestation_publication_date() -> None:
     ALTER TABLE `manifestation_publication_date`
     ADD PRIMARY KEY (`manifestation_id_i`);
     """
-    df = get_s3(spark,table,processed_bucket)
-    engine = get_sqlalchemy_engine(database)
-    with engine.connect() as conn:
-        # drop table if present
-        conn.execute(text(f"DROP TABLE IF EXISTS  {table}"))
-        conn.execute(text(schema))
-        print("Loading table into database")
-        # load the table
-        (
-            jdbc_opts(df.write,database=database)
-            .option("dbtable", table) 
-            .option("truncate", "true")
-            .mode("overwrite")
-            .save()
-        )
-        print("Checking Sizes")
-        # check row counts
-        database_count = conn.execute(text(f"SELECT COUNT(*) FROM {table}")).fetchall()[0][0]
-        spark_count = df.count()
-        assert database_count == spark_count
-        print("Creating Index")
-        conn.execute(text(index))
+    load_table(spark,table,processed_bucket,database,schema,index)
+
 
 
         

@@ -7,8 +7,8 @@ import os
 from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.types import StructField, StructType, LongType
-from etl_textreuse.database_utils import db_options
-
+from etl_textreuse.database_utils import db_options,get_sqlalchemy_engine
+from sqlalchemy import text
 # the buckets
 processed_bucket = "textreuse-dagster-rahti"
 raw_bucket = "textreuse-raw-data"
@@ -280,4 +280,31 @@ def jdbc_opts(conn,database:str):
         .option("password", db_details["password"])
         .option("fetchsize",db_details["fetchsize"])
         .option("batchsize",db_details["batchsize"]))
+
+
+def load_table(spark:SparkSession,table:str,bucket:str,database:str,schema:str,index:str):
+    # load spark table
+    df = get_s3(spark,table,bucket)
+    engine = get_sqlalchemy_engine(database)
+    with engine.connect() as conn:
+        # drop table if present
+        conn.execute(text(f"DROP TABLE IF EXISTS  {table}"))
+        # create table with schema
+        conn.execute(text(schema))
+        print("Loading table into database")
+        # load the table
+        (
+            jdbc_opts(df.write,database=database)
+            .option("dbtable", table) 
+            .option("truncate", "true")
+            .mode("overwrite")
+            .save()
+        )
+        print("Checking Sizes")
+        # check row counts
+        database_count = conn.execute(text(f"SELECT COUNT(*) FROM {table}")).fetchall()[0][0]
+        spark_count = df.count()
+        assert database_count == spark_count
+        print("Creating Index")
+        conn.execute(text(index))
 # %%
