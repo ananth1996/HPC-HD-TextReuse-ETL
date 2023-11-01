@@ -15,7 +15,9 @@ from etl_textreuse.assets.ids_and_mappings import textreuse_work_mapping
 def clustered_defrag_pieces() -> Output[None]:
     spark = get_spark_session(
         project_root, application_name="clustered degrag pieces")
-    get_s3(spark, "clusters_counts_0", processed_bucket,
+    #TODO fix the clustering phase
+    # for the time being take manaually run 100 iterations of Chinese Label Propagation
+    get_s3(spark, "clusters_counts_100", processed_bucket,
            table_name="clusters_counts")
     materialise_s3(
         spark,
