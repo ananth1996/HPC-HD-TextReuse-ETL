@@ -19,7 +19,7 @@ def db_manifestation_publication_date() -> None:
     )ENGINE=Aria PAGE_CHECKSUM=0 TRANSACTIONAL=0;"""
     index = """
     ALTER TABLE `manifestation_publication_date`
-    ADD PRIMARY KEY (`manifestation_id_i`;
+    ADD PRIMARY KEY (`manifestation_id_i`);
     """
     df = get_s3(spark,table,processed_bucket)
     engine = get_sqlalchemy_engine(database)
