@@ -9,9 +9,9 @@ from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.types import StructField, StructType, LongType
 
 # the buckets
-processed_bucket = "textreuse-dagster-test"
+processed_bucket = "textreuse-dagster-rahti"
 raw_bucket = "textreuse-raw-data"
-denorm_bucket = "textreuse-dagster-test"
+denorm_bucket = "textreuse-dagster-rahti"
 
 def get_spark_session(project_root:Path,application_name:str="ETL"):
     os.environ['PYSPARK_PYTHON'] = str(project_root/".venv/bin/python")
@@ -24,7 +24,7 @@ def get_spark_session(project_root:Path,application_name:str="ETL"):
             # See https://docs.databricks.com/en/error-messages/inconsistent-behavior-cross-version-error-class.html#write_ancient_datetime
             .config("spark.sql.parquet.datetimeRebaseModeInWrite","CORRECTED")
             # .config("spark.hadoop.fs.s3a.ssl.channel.mode","openssl")
-            #.config('spark.ui.showConsoleProgress', 'false')
+            .config('spark.ui.showConsoleProgress', 'false')
             #.config('spark.graphx.pregel.checkpointInterval','1')
             .config("spark.driver.memory","10g")
             .config("spark.sql.warehouse.dir","/Users/mahadeva/spark-warehouse")
