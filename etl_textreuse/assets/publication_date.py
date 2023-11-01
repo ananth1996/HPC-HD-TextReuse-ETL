@@ -131,3 +131,51 @@ def textreuse_earliest_publication_date() -> None:
         """),
         bucket=processed_bucket
     )
+
+
+@asset(
+    deps=[ecco_core, eebo_core, newspapers_core,manifestation_ids],
+    description="The publication year of each manifestation",
+    group_name="downstream_metadata"
+)
+def manifestation_publication_date() -> None:
+    spark = get_spark_session(
+        project_root, application_name="Manifestation Publication Date")
+    get_s3(spark,"ecco_core",raw_bucket)
+    get_s3(spark,"eebo_core",raw_bucket)
+    get_s3(spark,"newspapers_core",raw_bucket)
+    get_s3(spark,"manifestation_ids",processed_bucket)
+    materialise_s3(
+        spark,
+        fname="manifestation_publication_date",
+        df=spark.sql("""
+        SELECT 
+            DISTINCT 
+            mids.manifestation_id_i,
+            (CASE 
+                WHEN eebo_tls_publication_date IS NULL THEN NULL
+                WHEN LENGTH(eebo_tls_publication_date) = 4 THEN to_date(CONCAT(eebo_tls_publication_date,"-01-01"),'yyyy-MM-dd') -- Eg: 1697
+                WHEN LENGTH(eebo_tls_publication_date) = 5 THEN to_date(CONCAT(SUBSTRING(eebo_tls_publication_date,-4),"-01-01"),'yyyy-MM-dd') -- Eg: -1697
+                WHEN LENGTH(eebo_tls_publication_date) = 9 THEN to_date(CONCAT(SUBSTRING(eebo_tls_publication_date,1,4),"-01-01"), 'yyyy-MM-dd') -- Eg: 1690-1697
+                WHEN LENGTH(eebo_tls_publication_date) > 9 THEN to_date(eebo_tls_publication_date,'LLLL d, yyyy') -- Eg: April 24, 1649
+            END) AS publication_date
+            FROM eebo_core ec
+            INNER JOIN manifestation_ids mids ON ec.eebo_tcp_id = mids.manifestation_id
+            UNION ALL 
+            SELECT mids.manifestation_id_i,
+            (CASE
+                -- and year is not 0 or 1000
+                WHEN ec.ecco_date_start != 0 AND ec.ecco_date_start != 10000101 
+                THEN to_date(CONCAT(SUBSTRING(CAST(ec.ecco_date_start AS INT),1,4),"-01-01"),'yyyy-MM-dd') -- Eg: 1.7580101E7 -> 17580101 -> date(1758-01-01)
+                WHEN ec.ecco_date_start = 0 OR ec.ecco_date_start = 10000101 -- Don't record 0 years  
+                THEN NULL
+            END) AS publication_date
+            FROM ecco_core ec
+            INNER JOIN manifestation_ids mids ON ec.ecco_id = mids.manifestation_id
+            UNION ALL 
+            SELECT mids.manifestation_id_i, issue_start_date as publication_date
+            FROM newspapers_core nc 
+            INNER JOIN manifestation_ids mids ON nc.article_id  = mids.manifestation_id
+        """),
+    bucket=processed_bucket
+    )
