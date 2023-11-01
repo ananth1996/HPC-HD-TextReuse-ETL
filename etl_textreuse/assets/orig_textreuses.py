@@ -44,7 +44,7 @@ def orig_pieces() -> None:
     group_name="textreuses"
 )
 def orig_textreuses() -> None:
-    spark = get_spark_session(project_root, application_name="original pieces")
+    spark = get_spark_session(project_root, application_name="original textreuses")
     get_s3(spark, "textreuses", processed_bucket)
     get_s3(spark, "orig_pieces", processed_bucket)
     materialise_s3(
