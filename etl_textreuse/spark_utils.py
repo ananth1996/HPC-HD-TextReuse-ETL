@@ -7,13 +7,14 @@ import os
 from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.types import StructField, StructType, LongType
+from etl_textreuse.database_utils import db_options
 
 # the buckets
 processed_bucket = "textreuse-dagster-test"
 raw_bucket = "textreuse-raw-data"
 denorm_bucket = "textreuse-dagster-test"
 
-def get_spark_session(project_root:Path,application_name:str="ETL"):
+def get_spark_session(project_root:Path=project_root,application_name:str="ETL"):
     os.environ['PYSPARK_PYTHON'] = str(project_root/".venv/bin/python")
     #findspark.add_packages("graphframes:graphframes:0.8.2-spark3.2-s_2.12")
     findspark.init()
@@ -256,14 +257,27 @@ def materialise_with_int_id(spark:SparkSession,fname:str,df:DataFrame,col_name:s
 # with open(project_root/"database.toml") as fp:
 #     db_options = toml.load(fp)
 
-# def jdbc_opts(conn,database:str,db_options:dict=db_options):
-#     opts = db_options[database]
-#     return (conn
-#         .format("jdbc")
-#         .option("driver", opts["driver"])
-#         .option("url", opts["url"])
-#         .option("user", opts["user"])
-#         .option("password", opts["password"])
-#         .option("fetchsize",opts["fetchsize"])
-#         .option("batchsize",opts["batchsize"]))
+def get_db_details(database:str):
+    db_details = db_options[database]
+    if "url" not in db_details:
+        db_details["url"]=f"jdbc:mysql://{db_details['host']}:3306/{db_details['database']}?permitMysqlScheme"
+    if "driver" not in db_details:
+        db_details["driver"] = "org.mariadb.jdbc.Driver"
+    if "fetchsize" not in db_details:
+        db_details["fetchsize"]="100000"
+    if "batchsize" not in db_details:
+        db_details["fetchsize"]="100000"
+    return db_details
+
+
+def jdbc_opts(conn,database:str):
+    db_details = get_db_details(database)
+    return (conn
+        .format("jdbc")
+        .option("driver", db_details["driver"])
+        .option("url", db_details["url"])
+        .option("user", db_details["user"])
+        .option("password", db_details["password"])
+        .option("fetchsize",db_details["fetchsize"])
+        .option("batchsize",db_details["batchsize"]))
 # %%
