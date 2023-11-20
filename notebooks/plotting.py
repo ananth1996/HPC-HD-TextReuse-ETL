@@ -190,13 +190,14 @@ def get_query_types_table_sizes(query,sizes):
 # %%
 
 
-def get_running_times(query,dataset,data_dir=project_root/"data"):
+def get_running_times(query,dataset,data_dir=project_root/"data",hot_cache=False):
     if query == "reception":
         dfs = []
         for file in data_dir.glob("reception-queries-results*"):
             print(file)
             dfs.append(pd.read_csv(file))
-        # dfs[0]=pd.read_csv(data_dir/"double-reception-queries-results-rowstore.csv")
+        if hot_cache:
+            dfs[0]=pd.read_csv(data_dir/"double-reception-queries-results-rowstore.csv")
         df = pd.concat(dfs)
         df = df[df.database.isin([dataset,dataset+"-columnstore",dataset+"-spark"])]
         samples = pd.read_csv(data_dir/f"{dataset}-samples.csv")
@@ -257,14 +258,15 @@ def plot_sizes(save_fig=False):
 # plot_sizes()
 #%%
 dataset = "hpc-hd"
-query = "quote"
+query = "reception"
 save_fig=True
+hot_cache = False
 plots_dir = Path("/Users/mahadeva/Research/textreuse-pipeline-paper/figures")
 sizes = load_table_sizes(dataset)
 #%%
 #%%
 query_table_sizes = get_query_types_table_sizes(query,sizes)
-running_times = get_running_times(query,dataset)
+running_times = get_running_times(query,dataset,hot_cache=hot_cache)
 #%%
 running_times = running_times.merge(
     query_table_sizes, on=["TABLE_SCHEMA", "query_type"])
@@ -285,9 +287,10 @@ else:
 #%%
 hue = _df[['query_type', 'TABLE_SCHEMA']].apply(
     lambda row: f"{row.query_type}, {row.TABLE_SCHEMA}", axis=1)
+hue = hue.sort_values()
 hue.name = 'query_type, TABLE_SCHEMA'
 #%%
-sns.pointplot(data=_df, x="total_size", y="duration", hue=hue,native_scale=True,log_scale=[2,False])
+sns.pointplot(data=_df, x="total_size", y="duration", hue=hue,hue_order=hue.unique(),native_scale=True,log_scale=[2,False])
 plt.yscale("log")
 ticks = [s for s in _df.total_size.unique()]
 labels = [sizeof_fmt(s) for s in ticks]
@@ -296,8 +299,21 @@ plt.legend(bbox_to_anchor=(1,0.5),loc="center left",title=hue.name)
 plt.xlabel("Disk Size Used (Tables + Indexes)")
 plt.ylabel("Query Duration (in sec)")
 plt.title(f"{dataset.title()} dataset and {query.title()} use-case")
+l = plt.gca().get_legend_handles_labels()
+import re
+replace = re.compile(f"{dataset}-") 
+_l = [l[0],l[1]]
+_l[1] = [replace.sub("",s) for s in l[1]]
+figl, axl = plt.subplots()
+axl.axis(False)
+legend = axl.legend(*_l, loc="center", bbox_to_anchor=(0.5, 0.5),ncols=3,title='Materlialization Level, System',frameon=False)
+fig  = legend.figure
+fig.canvas.draw()
+bbox  = legend.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+if save_fig:
+    fig.savefig(plots_dir/"legend.pdf",bbox_inches=bbox)
 #%%
-sns.pointplot(data=_df, x="storage_cost", y="processing_cost", hue=hue,native_scale=True,log_scale=[True,True])
+sns.pointplot(data=_df, x="storage_cost", y="processing_cost", hue=hue,hue_order=hue.unique(),native_scale=True,log_scale=[True,True])
 plt.legend(bbox_to_anchor=(1,0.5),loc="center left",title=hue.name)
 plt.xlabel("Storage Costs (in BU/hr)")
 plt.ylabel("Query Processing Cost (in BU)")
@@ -305,7 +321,7 @@ plt.title(f"{dataset.title()} dataset and {query.title()} use-case")
 if save_fig:
     plt.savefig(plots_dir/f"{dataset}-{query}-costs.pdf")
 #%%
-sns.lineplot(data=_df,x="total_cost",y="duration",hue=hue)
+sns.lineplot(data=_df,x="total_cost",y="duration",hue=hue,hue_order=hue.unique())
 plt.yscale("log")
 plt.xscale("log")
 plt.xlabel("Total Costs in BU (1hr Storage + Query Processing costs)")
@@ -319,10 +335,17 @@ ax = sns.catplot(data=running_times,col="TABLE_SCHEMA",x="query_dists_id",y="dur
 plt.yscale("log")
 # plt.gca().get_legend().remove()
 sns.move_legend(ax,bbox_to_anchor=(0.5,0.01),bbox_transform=plt.gcf().transFigure, loc="upper center",ncols=3,title="")
-plt.savefig(plots_dir/f"{dataset}-{query}-duration.pdf",bbox_inches="tight")
-
+if save_fig:
+    plt.savefig(plots_dir/f"{dataset}-{query}-duration.pdf",bbox_inches="tight") 
 #%%
-
+if hot_cache:
+    _tmp = running_times[running_times.TABLE_SCHEMA==f"{dataset}-rowstore"]
+    ax = sns.barplot(data=_tmp,x="query_dists_id",y="duration",hue="query_type")
+    plt.yscale("log")
+    # plt.gca().get_legend().remove()
+    sns.move_legend(ax,bbox_to_anchor=(0.5,0.01),bbox_transform=plt.gcf().transFigure, loc="upper center",ncols=3,title="")
+    if save_fig:
+        plt.savefig(plots_dir/f"{dataset}-{query}-hot-cache-duration.pdf",bbox_inches="tight") 
 
 
 #%%
