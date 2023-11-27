@@ -134,7 +134,7 @@ def textreuse_earliest_publication_date() -> None:
 
 
 @asset(
-    deps=[ecco_core, eebo_core, newspapers_core,manifestation_ids],
+    deps=[ecco_core, eebo_core, newspapers_core,manifestation_ids,estc_core,"edition_ids","edition_mapping"],
     description="The publication year of each manifestation",
     group_name="downstream_metadata"
 )
@@ -145,6 +145,9 @@ def manifestation_publication_date() -> Output[None]:
     get_s3(spark,"eebo_core",raw_bucket)
     get_s3(spark,"newspapers_core",raw_bucket)
     get_s3(spark,"manifestation_ids",processed_bucket)
+    get_s3(spark,"estc_core",raw_bucket)
+    get_s3(spark, "edition_ids", processed_bucket)
+    get_s3(spark, "edition_mapping", processed_bucket)
     materialise_s3(
         spark,
         fname="manifestation_publication_date",
@@ -164,13 +167,17 @@ def manifestation_publication_date() -> Output[None]:
             UNION ALL 
             SELECT mids.manifestation_id_i,
             (CASE
-                -- and year is not 0,1000 or greater than 1839
-                WHEN ec.ecco_date_start != 0 AND ec.ecco_date_start != 10000101 AND ec.ecco_date_start <= 18390000
-                THEN to_date(CONCAT(SUBSTRING(CAST(ec.ecco_date_start AS INT),1,4),"-01-01"),'yyyy-MM-dd') -- Eg: 1.7580101E7 -> 17580101 -> date(1758-01-01)
-                ELSE NULL
+                -- year is not 0, 1000 or greater than 1839
+                WHEN ec.ecco_date_start != 0 AND ec.ecco_date_start != 10000101 AND CAST(ec.ecco_date_start AS INT) <= 18390000
+                THEN to_date(CONCAT(SUBSTRING(CAST(ec.ecco_date_start AS INT),1,4),"-01-01"),'yyy-MM-dd') -- Eg: 1.7580101E7 -> 17580101 -> date(1758-01-01)
+                -- otherwise check ESTC for the publication year
+                ELSE to_date(CONCAT(CAST(estc.publication_year AS INT),"-01-01"),'yyyy-MM-dd')
             END) AS publication_date
             FROM ecco_core ec
             INNER JOIN manifestation_ids mids ON ec.ecco_id = mids.manifestation_id
+            INNER JOIN edition_mapping em USING(manifestation_id_i)
+            INNER JOIN edition_ids eids USING(edition_id_i)
+            LEFT JOIN estc_core estc ON eids.edition_id = estc.estc_id
             UNION ALL 
             SELECT mids.manifestation_id_i, issue_start_date as publication_date
             FROM newspapers_core nc 
