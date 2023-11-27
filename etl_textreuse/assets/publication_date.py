@@ -164,11 +164,10 @@ def manifestation_publication_date() -> None:
             UNION ALL 
             SELECT mids.manifestation_id_i,
             (CASE
-                -- and year is not 0 or 1000
-                WHEN ec.ecco_date_start != 0 AND ec.ecco_date_start != 10000101 
+                -- and year is not 0,1000 or greater than 1839
+                WHEN ec.ecco_date_start != 0 AND ec.ecco_date_start != 10000101 AND CAST(ec.ecoo_date_start AS INT) > 18390000
                 THEN to_date(CONCAT(SUBSTRING(CAST(ec.ecco_date_start AS INT),1,4),"-01-01"),'yyyy-MM-dd') -- Eg: 1.7580101E7 -> 17580101 -> date(1758-01-01)
-                WHEN ec.ecco_date_start = 0 OR ec.ecco_date_start = 10000101 -- Don't record 0 years  
-                THEN NULL
+                ELSE NULL
             END) AS publication_date
             FROM ecco_core ec
             INNER JOIN manifestation_ids mids ON ec.ecco_id = mids.manifestation_id
