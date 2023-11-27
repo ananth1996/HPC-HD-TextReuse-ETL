@@ -1,14 +1,17 @@
 from pathlib import Path
 project_root = Path(__file__).parent.parent.resolve()
 import toml
-import findspark
-from typing import *
 import os
+import findspark
+os.environ['PYSPARK_PYTHON'] = str(project_root/".venv/bin/python")
+findspark.init()
+from typing import *
 from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.types import StructField, StructType, LongType
 from etl_textreuse.database_utils import db_options,get_sqlalchemy_engine
 from sqlalchemy import text
+from time import perf_counter as time
 # the buckets
 processed_bucket = "textreuse-dagster-rahti"
 raw_bucket = "textreuse-raw-data"
@@ -16,8 +19,7 @@ denorm_bucket = "textreuse-dagster-rahti"
 
 def get_spark_session(project_root:Path=project_root,application_name:str="ETL"):
     os.environ['PYSPARK_PYTHON'] = str(project_root/".venv/bin/python")
-    #findspark.add_packages("graphframes:graphframes:0.8.2-spark3.2-s_2.12")
-    findspark.init()
+    #findspark.add_packages("graphframes:graphframes:0.8.2-spark3.2-s_2.12"
     spark = (SparkSession
             .builder
             .appName(application_name)
@@ -282,10 +284,11 @@ def jdbc_opts(conn,database:str):
         .option("batchsize",db_details["batchsize"]))
 
 
-def load_table(spark:SparkSession,table:str,bucket:str,database:str,schema:str,index:str):
+def load_table(spark:SparkSession,table:str,bucket:str,database:str,schema:str,index:str) -> Dict[str,float]:
     # load spark table
     df = get_s3(spark,table,bucket)
     engine = get_sqlalchemy_engine(database)
+    start = time()
     with engine.connect() as conn:
         # drop table if present
         conn.execute(text(f"DROP TABLE IF EXISTS  {table}"))
@@ -300,11 +303,16 @@ def load_table(spark:SparkSession,table:str,bucket:str,database:str,schema:str,i
             .mode("overwrite")
             .save()
         )
+        load_time = time() - start
         print("Checking Sizes")
         # check row counts
         database_count = conn.execute(text(f"SELECT COUNT(*) FROM {table}")).fetchall()[0][0]
         spark_count = df.count()
         assert database_count == spark_count
         print("Creating Index")
+        start = time()
         conn.execute(text(index))
+        index_time = time() - start
+    metadata = {"rows":database_count,"Loading Time":load_time,"Indexing Time":index_time}
+    return metadata
 # %%
