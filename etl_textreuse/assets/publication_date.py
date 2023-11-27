@@ -138,7 +138,7 @@ def textreuse_earliest_publication_date() -> None:
     description="The publication year of each manifestation",
     group_name="downstream_metadata"
 )
-def manifestation_publication_date() -> None:
+def manifestation_publication_date() -> Output[None]:
     spark = get_spark_session(
         project_root, application_name="Manifestation Publication Date")
     get_s3(spark,"ecco_core",raw_bucket)
