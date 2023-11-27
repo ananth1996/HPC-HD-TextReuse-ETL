@@ -7,15 +7,15 @@ from dagster import asset
     description="The titles for each manifestation",
     group_name="downstream_metadata"
 )
-def manifestation_titles() -> None:
-    spark = get_spark_session(application_name="manifestation titles")
+def manifestation_title() -> None:
+    spark = get_spark_session(application_name="manifestation title")
     get_s3(spark,"ecco_core",raw_bucket)
     get_s3(spark,"eebo_core",raw_bucket)
     get_s3(spark,"newspapers_core",raw_bucket)
     get_s3(spark,"manifestation_ids",processed_bucket)
     materialise_s3(
         spark,
-        fname="manifestation_titles",
+        fname="manifestation_title",
         df = spark.sql(
         """
         SELECT manifestation_id_i,ecco_full_title as title FROM manifestation_ids mi 

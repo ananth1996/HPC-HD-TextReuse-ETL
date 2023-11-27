@@ -179,3 +179,23 @@ def manifestation_publication_date() -> None:
         """),
     bucket=processed_bucket
     )
+    year_count_desc = (
+        spark.sql("""
+                  SELECT * FROM 
+                  (SELECT year(publication_date) as publication_year,COUNT(*) as count 
+                  FROM manifestation_publication_date 
+                  GROUP BY publication_year 
+                  ORDER BY publication_year DESC
+                  LIMIT 10)a
+                  UNION ALL 
+                  SELECT * FROM 
+                  (SELECT year(publication_date) as publication_year,COUNT(*) as count 
+                  FROM manifestation_publication_date 
+                  GROUP BY publication_year 
+                  ORDER BY publication_year 
+                  LIMIT 10)b
+                  """)
+        .toPandas()
+        .to_markdown()
+    )
+    return Output(None, metadata={"years count": MetadataValue.md(year_count_desc)})
