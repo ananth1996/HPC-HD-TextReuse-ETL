@@ -118,6 +118,57 @@ def earliest_work_and_pieces_by_cluster() -> None:
     deps=[clustered_defrag_pieces, 
           "manifestation_publication_date",
           "textreuse_manifestation_mapping", 
+          "ecco_core",
+          "eebo_core",
+          "manifestation_ids",
+          defrag_pieces],
+    description="The earliest work and corresponding piece in each cluster",
+    group_name="downstream_textreuses"
+)
+def earliest_book_and_pieces_by_cluster() -> Output[None]:
+    spark = get_spark_session(
+        project_root, application_name="Earliest work and piece in cluster")
+    get_s3(spark, "clustered_defrag_pieces", processed_bucket)
+    get_s3(spark, "defrag_pieces", processed_bucket)
+    get_s3(spark, "manifestation_publication_date", processed_bucket)
+    get_s3(spark, "textreuse_manifestation_mapping", processed_bucket)
+    get_s3(spark, "manifestation_ids", processed_bucket)
+    get_s3(spark, "ecco_core", raw_bucket)
+    get_s3(spark, "eebo_core", raw_bucket)
+    df = materialise_s3(
+        spark,
+        fname="earliest_book_and_pieces_by_cluster",
+        df=spark.sql("""
+        SELECT cluster_id,manifestation_id_i,piece_id
+        FROM (
+        SELECT 
+            cluster_id,
+            manifestation_id_i,
+            piece_id,
+            publication_date,
+            MIN(publication_date) OVER (PARTITION BY cluster_id) AS min_publication_date
+        FROM clustered_defrag_pieces cdp
+        INNER JOIN defrag_pieces dp USING (piece_id)
+        INNER JOIN textreuse_manifestation_mapping tmm USING (trs_id)
+        INNER JOIN manifestation_ids mi USING (manifestation_id_i)
+        LEFT JOIN ecco_core ec ON ec.ecco_id = mi.manifestation_id
+        LEFT JOIN eebo_core eb ON eb.eebo_tcp_id = mi.manifestation_id
+        INNER JOIN manifestation_publication_date mpd USING (manifestation_id_i)
+        -- only consider pieces from ECCO and EEBO-TCP
+        WHERE NOT (ec.ecco_id IS NULL AND eb.eebo_tcp_id IS NULL)
+        )
+        WHERE 
+            publication_date=min_publication_date-- earliest work piece
+        """),
+        bucket=processed_bucket
+    )   
+    row_count = df.count()
+    return Output(None,metadata={"Row Count":row_count})
+
+@asset(
+    deps=[clustered_defrag_pieces, 
+          "manifestation_publication_date",
+          "textreuse_manifestation_mapping", 
           defrag_pieces],
     description="The earliest work and corresponding piece in each cluster",
     group_name="downstream_textreuses"
