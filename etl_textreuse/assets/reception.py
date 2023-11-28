@@ -1,7 +1,11 @@
 from etl_textreuse.spark_utils import *
 from dagster import asset, Output
-from etl_textreuse.assets.downstream_clusters import clustered_defrag_pieces, earliest_work_and_pieces_by_cluster
+from etl_textreuse.assets.downstream_clusters import (
+    clustered_defrag_pieces,
+    earliest_work_and_pieces_by_cluster,
+)
 from etl_textreuse.assets.defragmentation import defrag_pieces
+
 # %%
 
 # %%
@@ -11,7 +15,7 @@ from etl_textreuse.assets.defragmentation import defrag_pieces
 @asset(
     deps=[earliest_work_and_pieces_by_cluster, clustered_defrag_pieces],
     description="Reception Edges",
-    group_name="downstream_textreuses"
+    group_name="downstream_textreuses",
 )
 def reception_edges() -> None:
     spark = get_spark_session(project_root, "Reception Edges")
@@ -20,7 +24,8 @@ def reception_edges() -> None:
     materialise_s3(
         spark,
         fname="reception_edges",
-        df=spark.sql("""
+        df=spark.sql(
+            """
         WITH non_source_pieces AS (
             SELECT cluster_id,piece_id FROM earliest_work_and_pieces_by_cluster ewapbca2 
             RIGHT JOIN clustered_defrag_pieces cdp USING(cluster_id,piece_id) 
@@ -31,9 +36,12 @@ def reception_edges() -> None:
         -- only if a cluster has non_source pieces add edges
         --  hence, some clusters which are only source pieces will not have edges
         INNER JOIN non_source_pieces nsp USING(cluster_id)
-        """),
+        """
+        ),
         bucket=processed_bucket,
     )
+
+
 # %%
 # Create a denormalized version of the reception edges
 # here the pieces are denormalizes to ensure quicker searches
@@ -42,7 +50,7 @@ def reception_edges() -> None:
 @asset(
     deps=[reception_edges, defrag_pieces],
     description="Denormalised Reception Edges",
-    group_name="denormalised"
+    group_name="denormalised",
 )
 def reception_edges_denorm() -> None:
     spark = get_spark_session(project_root, "Reception Edges Denormalized")
@@ -52,7 +60,8 @@ def reception_edges_denorm() -> None:
     materialise_s3(
         spark,
         fname="reception_edges_denorm",
-        df=spark.sql("""
+        df=spark.sql(
+            """
         SELECT 
             dp1.trs_id AS src_trs_id,
             dp1.trs_start AS src_trs_start,
@@ -64,25 +73,31 @@ def reception_edges_denorm() -> None:
         reception_edges re
         INNER JOIN defrag_pieces dp1 ON re.src_piece_id = dp1.piece_id
         INNER JOIN defrag_pieces dp2 ON re.dst_piece_id = dp2.piece_id
-        """),
-        bucket=denorm_bucket
+        """
+        ),
+        bucket=denorm_bucket,
     )
+
+
 # %%
 
 
 @asset(
     deps=["earliest_manifestation_and_pieces_by_cluster", clustered_defrag_pieces],
     description="Reception Edges by manifestation publication date",
-    group_name="downstream_textreuses"
+    group_name="downstream_textreuses",
 )
 def reception_edges_by_manifestation_date() -> Output[None]:
-    spark = get_spark_session(project_root, "Reception Edges By manifestation publication date")
+    spark = get_spark_session(
+        project_root, "Reception Edges By manifestation publication date"
+    )
     get_s3(spark, "earliest_manifestation_and_pieces_by_cluster", processed_bucket)
     get_s3(spark, "clustered_defrag_pieces", processed_bucket)
     df = materialise_s3(
         spark,
         fname="reception_edges_by_manifestation_date",
-        df=spark.sql("""
+        df=spark.sql(
+            """
         WITH non_source_pieces AS (
             SELECT cluster_id,piece_id FROM earliest_manifestation_and_pieces_by_cluster epbc 
             RIGHT JOIN clustered_defrag_pieces cdp USING(cluster_id,piece_id) 
@@ -93,19 +108,19 @@ def reception_edges_by_manifestation_date() -> Output[None]:
         -- only if a cluster has non_source pieces add edges
         --  hence, some clusters which are only source pieces will not have edges
         INNER JOIN non_source_pieces nsp USING(cluster_id)
-        """),
+        """
+        ),
         bucket=processed_bucket,
     )
     row_count = df.count()
 
-    return Output(None,metadata={"Row count":row_count})
-
+    return Output(None, metadata={"Row count": row_count})
 
 
 @asset(
     deps=[reception_edges_by_manifestation_date, defrag_pieces],
     description="Denormalised Reception Edges By Manifestation Date",
-    group_name="denormalised"
+    group_name="denormalised",
 )
 def reception_edges_by_manifestation_date_denorm() -> None:
     spark = get_spark_session(project_root, "Reception Edges Denormalized")
@@ -115,7 +130,8 @@ def reception_edges_by_manifestation_date_denorm() -> None:
     materialise_s3(
         spark,
         fname="reception_edges_by_manifestation_date_denorm",
-        df=spark.sql("""
+        df=spark.sql(
+            """
         SELECT 
             dp1.trs_id AS src_trs_id,
             dp1.trs_start AS src_trs_start,
@@ -127,6 +143,10 @@ def reception_edges_by_manifestation_date_denorm() -> None:
         reception_edges_by_manifestation_date re
         INNER JOIN defrag_pieces dp1 ON re.src_piece_id = dp1.piece_id
         INNER JOIN defrag_pieces dp2 ON re.dst_piece_id = dp2.piece_id
-        """),
-        bucket=denorm_bucket
+        """
+        ),
+        bucket=denorm_bucket,
     )
+
+
+
