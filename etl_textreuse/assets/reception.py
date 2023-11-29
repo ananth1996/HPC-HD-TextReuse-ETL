@@ -6,7 +6,28 @@ from etl_textreuse.assets.downstream_clusters import (
 )
 from etl_textreuse.assets.defragmentation import defrag_pieces
 
-# %%
+# Non Source Pieces
+@asset(
+    deps=[earliest_work_and_pieces_by_cluster, clustered_defrag_pieces],
+    description="The non-source pieces in each cluster",
+    group_name="downstream_textreuses",
+)
+def non_source_pieces() -> Output[None]:
+    spark = get_spark_session(application_name="Non Source Pieces")
+    get_s3(spark,"earliest_work_and_pieces_by_cluster",processed_bucket)
+    get_s3(spark,"clustered_defrag_pieces",processed_bucket)
+    df = materialise_s3_if_not_exists(
+        spark,
+        fname="non_source_pieces",
+        df = spark.sql("""
+        SELECT cluster_id,piece_id FROM earliest_work_and_pieces_by_cluster 
+        RIGHT JOIN clustered_defrag_pieces cdp USING(cluster_id,piece_id) 
+        WHERE work_id_i IS NULL -- where it is not the earliest piece
+        """),
+        bucket=processed_bucket
+    )
+    row_count = df.count()
+    return Output(None,metadata={"Row Count":row_count})
 
 # %%
 # materialize a downstream table specifically for the reception task
