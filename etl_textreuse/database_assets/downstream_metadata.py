@@ -1,14 +1,14 @@
 from etl_textreuse.spark_utils import get_spark_session,load_table,processed_bucket
 from etl_textreuse.database_utils import get_sqlalchemy_engine
 from sqlalchemy import text
-from dagster import asset
+from dagster import asset, Output, MetadataValue
 
 
 @asset(
     deps=["manifestation_publication_date"],
     group_name="database"
 )
-def db_manifestation_publication_date() -> None:
+def db_manifestation_publication_date() -> Output[None]:
     spark = get_spark_session(application_name="Load MariaDB")
     table = "manifestation_publication_date"
     database = "hpc-hd-newspapers"
@@ -21,7 +21,9 @@ def db_manifestation_publication_date() -> None:
     ALTER TABLE `manifestation_publication_date`
     ADD PRIMARY KEY (`manifestation_id_i`);
     """
-    load_table(spark,table,processed_bucket,database,schema,index)
+    metadata = load_table(spark,table,processed_bucket,database,schema,index)
+    return Output(None,metadata=metadata)
+
 
 @asset(
     deps=["manifestation_title"],

@@ -202,3 +202,24 @@ def textreuse_work_mapping() -> None:
         """),
         bucket=processed_bucket
     )
+
+@asset(
+    deps=[textreuse_ids, manifestation_ids],
+    description="Mapping between textreuses and works",
+    group_name="metadata"
+)
+def textreuse_manifestation_mapping() -> None:
+    spark = get_spark_session(
+        project_root, application_name="textreuse manifestation mapping")
+    get_s3(spark, "textreuse_ids", bucket=processed_bucket)
+    get_s3(spark, "manifestation_ids", bucket=processed_bucket)
+    materialise_s3(
+        spark,
+        fname="textreuse_manifestation_mapping",
+        df=spark.sql("""
+        SELECT DISTINCT trs_id,manifestation_id_i
+        FROM textreuse_ids ti
+        INNER JOIN manifestation_ids USING (manifestation_id)
+        """),
+        bucket=processed_bucket
+    )

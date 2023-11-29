@@ -134,47 +134,82 @@ def textreuse_earliest_publication_date() -> None:
 
 
 @asset(
-    deps=[ecco_core, eebo_core, newspapers_core,manifestation_ids],
+    deps=[ecco_core, eebo_core, newspapers_core,manifestation_ids,estc_core,"edition_ids","edition_mapping"],
     description="The publication year of each manifestation",
     group_name="downstream_metadata"
 )
-def manifestation_publication_date() -> None:
+def manifestation_publication_date() -> Output[None]:
     spark = get_spark_session(
         project_root, application_name="Manifestation Publication Date")
     get_s3(spark,"ecco_core",raw_bucket)
     get_s3(spark,"eebo_core",raw_bucket)
     get_s3(spark,"newspapers_core",raw_bucket)
     get_s3(spark,"manifestation_ids",processed_bucket)
+    get_s3(spark,"estc_core",raw_bucket)
+    get_s3(spark, "edition_ids", processed_bucket)
+    get_s3(spark, "edition_mapping", processed_bucket)
     materialise_s3(
         spark,
         fname="manifestation_publication_date",
         df=spark.sql("""
         SELECT 
-            DISTINCT 
-            mids.manifestation_id_i,
-            (CASE 
-                WHEN eebo_tls_publication_date IS NULL THEN NULL
-                WHEN LENGTH(eebo_tls_publication_date) = 4 THEN to_date(CONCAT(eebo_tls_publication_date,"-01-01"),'yyyy-MM-dd') -- Eg: 1697
-                WHEN LENGTH(eebo_tls_publication_date) = 5 THEN to_date(CONCAT(SUBSTRING(eebo_tls_publication_date,-4),"-01-01"),'yyyy-MM-dd') -- Eg: -1697
-                WHEN LENGTH(eebo_tls_publication_date) = 9 THEN to_date(CONCAT(SUBSTRING(eebo_tls_publication_date,1,4),"-01-01"), 'yyyy-MM-dd') -- Eg: 1690-1697
-                WHEN LENGTH(eebo_tls_publication_date) > 9 THEN to_date(eebo_tls_publication_date,'LLLL d, yyyy') -- Eg: April 24, 1649
-            END) AS publication_date
-            FROM eebo_core ec
-            INNER JOIN manifestation_ids mids ON ec.eebo_tcp_id = mids.manifestation_id
-            UNION ALL 
-            SELECT mids.manifestation_id_i,
+            manifestation_id_i, 
+            MIN(publication_date) AS publication_date 
+            FROM (
+            SELECT  mids.manifestation_id_i,
+                (CASE 
+                    WHEN eebo_tls_publication_date IS NULL THEN to_date(CONCAT(CAST(publication_year AS INT),"-01-01"),'yyyy-MM-dd')
+                    WHEN LENGTH(eebo_tls_publication_date) = 4 THEN to_date(CONCAT(eebo_tls_publication_date,"-01-01"),'yyyy-MM-dd') -- Eg: 1697
+                    WHEN LENGTH(eebo_tls_publication_date) = 5 THEN to_date(CONCAT(SUBSTRING(eebo_tls_publication_date,-4),"-01-01"),'yyyy-MM-dd') -- Eg: -1697
+                    WHEN LENGTH(eebo_tls_publication_date) = 9 THEN to_date(CONCAT(SUBSTRING(eebo_tls_publication_date,1,4),"-01-01"), 'yyyy-MM-dd') -- Eg: 1690-1697
+                    WHEN LENGTH(eebo_tls_publication_date) > 9 THEN to_date(eebo_tls_publication_date,'LLLL d, yyyy') -- Eg: April 24, 1649
+                END) AS publication_date
+                FROM eebo_core ec
+                INNER JOIN manifestation_ids mids ON ec.eebo_tcp_id = mids.manifestation_id
+                INNER JOIN edition_mapping em USING(manifestation_id_i)
+                INNER JOIN edition_ids eids USING(edition_id_i)
+                LEFT JOIN estc_core estc ON eids.edition_id = estc.estc_id
+            )a
+            -- some docs have multiple ESTC mappings
+            GROUP BY manifestation_id_i
+        UNION ALL 
+        SELECT mids.manifestation_id_i,
             (CASE
-                -- and year is not 0,1000 or greater than 1839
-                WHEN ec.ecco_date_start != 0 AND ec.ecco_date_start != 10000101 AND CAST(ec.ecoo_date_start AS INT) > 18390000
-                THEN to_date(CONCAT(SUBSTRING(CAST(ec.ecco_date_start AS INT),1,4),"-01-01"),'yyyy-MM-dd') -- Eg: 1.7580101E7 -> 17580101 -> date(1758-01-01)
-                ELSE NULL
+                -- year is not 0, 1000 or greater than 1839
+                WHEN ec.ecco_date_start != 0 AND ec.ecco_date_start != 10000101 AND CAST(ec.ecco_date_start AS INT) <= 18390000
+                THEN to_date(CONCAT(SUBSTRING(CAST(ec.ecco_date_start AS INT),1,4),"-01-01"),'yyy-MM-dd') -- Eg: 1.7580101E7 -> 17580101 -> date(1758-01-01)
+                -- otherwise check ESTC for the publication year
+                ELSE to_date(CONCAT(CAST(estc.publication_year AS INT),"-01-01"),'yyyy-MM-dd')
             END) AS publication_date
             FROM ecco_core ec
             INNER JOIN manifestation_ids mids ON ec.ecco_id = mids.manifestation_id
-            UNION ALL 
+            INNER JOIN edition_mapping em USING(manifestation_id_i)
+            INNER JOIN edition_ids eids USING(edition_id_i)
+            LEFT JOIN estc_core estc ON eids.edition_id = estc.estc_id
+        UNION ALL 
             SELECT mids.manifestation_id_i, issue_start_date as publication_date
             FROM newspapers_core nc 
             INNER JOIN manifestation_ids mids ON nc.article_id  = mids.manifestation_id
         """),
     bucket=processed_bucket
     )
+    year_count_desc = (
+        spark.sql("""
+                  SELECT * FROM 
+                  (SELECT year(publication_date) as publication_year,COUNT(*) as count 
+                  FROM manifestation_publication_date 
+                  GROUP BY publication_year 
+                  ORDER BY publication_year DESC
+                  LIMIT 10)a
+                  UNION ALL 
+                  SELECT * FROM 
+                  (SELECT year(publication_date) as publication_year,COUNT(*) as count 
+                  FROM manifestation_publication_date 
+                  GROUP BY publication_year 
+                  ORDER BY publication_year 
+                  LIMIT 10)b
+                  """)
+        .toPandas()
+        .to_markdown()
+    )
+    return Output(None, metadata={"years count": MetadataValue.md(year_count_desc)})
