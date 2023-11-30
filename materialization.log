@@ -37,7 +37,7 @@ Internal error: TupleAnnexStep::executeParallelOrderBy() MCS-2018: Not enough me
 ## Spark 
 
 ### Creating asset
-2min 2sec 
+2 min 2 sec 
 
 
 ### Loading to Aria Tables 
@@ -51,3 +51,26 @@ Internal error: TupleAnnexStep::executeParallelOrderBy() MCS-2018: Not enough me
 
 ### Columnstore Bulk Loading 
 16 min 6.418 sec
+
+
+
+# Source piece source_piece_statistics_denorm
+
+
+## Spark 
+
+### Asset creation 
+
+source_piece_statistics: 22 min 18 sec
+source_piece_statistics_denorm: 2 min 14 sec
+
+### Bulk loading 
+3.5 min
+
+### Indexing in Aria 
+
+7 min 9.914 sec
+
+### Columnstore Bulk Loading 
+
+5 min 13.100 sec
