@@ -469,10 +469,21 @@ else:
 _df = remap_df(_df)
 # %%
 hue = _df[["query_type", "schema"]].apply(
-    lambda row: f"{row.query_type}, {row.schema}", axis=1
+    lambda row: f"{row.query_type} | {row.schema}", axis=1
 )
 hue = hue.sort_values()
-hue.name = "Normalization, Framework"
+hue.name = "Normalization | Framework"
+hue_color = {
+    r"$\texttt{Denorm}$ | $\texttt{Aria}$":"tab:blue",
+    r"$\texttt{Denorm}$ | $\texttt{Columnstore}$":"tab:blue",
+    r"$\texttt{Denorm}$ | $\texttt{Spark}$":"tab:blue",
+    r"$\texttt{Intermediate}$ | $\texttt{Aria}$":"tab:orange",
+    r"$\texttt{Intermediate}$ | $\texttt{Columnstore}$":"tab:orange",
+    r"$\texttt{Intermediate}$ | $\texttt{Spark}$":"tab:orange",
+    r"$\texttt{Standard}$ | $\texttt{Aria}$":"tab:green",
+    r"$\texttt{Standard}$ | $\texttt{Columnstore}$":"tab:green",
+    r"$\texttt{Standard}$ | $\texttt{Spark}$":"tab:green"
+    }
 # %%
 sns.pointplot(
     data=_df,
@@ -493,20 +504,44 @@ plt.ylabel("Query Duration (in sec)")
 plt.title(f"{dataset.title()} dataset and {query.title()} use-case")
 if save_fig:
     plt.savefig(plots_dir / f"{dataset}-{query}-storage.pdf")
-l = plt.gca().get_legend_handles_labels()
-import re
+# %%
+setup_matplotlib(dpi_scale=3)
+figsize = np.array(set_size(width=columnwidth, subplots=(1, 1)))
+# figsize[1] *= 1.8
+fig, ax = plt.subplots(1, 1, figsize=figsize)
+sns.pointplot(
+    data=_df,
+    ax=ax,
+    x="storage_cost",
+    y="processing_cost",
+    hue=hue,
+    palette=hue_color,
+    hue_order=hue.unique(),
+    native_scale=True,
+    log_scale=[True, True],
+    legend=True,
+    markersize=3,
+    markers=["o","s","D","o",'s',"D",'o',"s",'D'],
+    err_kws={"linewidth":1.5}
+)
+l = ax.get_legend_handles_labels()
+ax.get_legend().remove()
+# plt.legend(bbox_to_anchor=(1, 0.5), loc="center left", title=hue.name)
+ax.set_xlabel("Storage Costs (in BU/hr)")
+ax.set_ylabel("Query Execution Cost (in BU)")
+# plt.title(f"{dataset.title()} dataset and {query.title()} use-case")
+if save_fig:
+    plt.savefig(plots_dir / f"{dataset}-{query}-costs.pdf",bbox_inches="tight",pad_inches=0)
 
-replace = re.compile(f"{dataset}-")
-_l = [l[0], l[1]]
-_l[1] = [replace.sub("", s) for s in l[1]]
-figl, axl = plt.subplots()
+figsize = np.array(set_size(width=fullwidth, subplots=(1, 1)))
+figl, axl = plt.subplots(figsize=figsize)
 axl.axis(False)
 legend = axl.legend(
-    *_l,
+    *l,
     loc="center",
     bbox_to_anchor=(0.5, 0.5),
     ncols=3,
-    title="Normalization Level, Framework",
+    title="Normalization Level | Framework",
     frameon=False,
 )
 fig = legend.figure
@@ -514,22 +549,6 @@ fig.canvas.draw()
 bbox = legend.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
 if save_fig:
     fig.savefig(plots_dir / "legend.pdf", bbox_inches=bbox)
-# %%
-sns.pointplot(
-    data=_df,
-    x="storage_cost",
-    y="processing_cost",
-    hue=hue,
-    hue_order=hue.unique(),
-    native_scale=True,
-    log_scale=[True, True],
-)
-plt.legend(bbox_to_anchor=(1, 0.5), loc="center left", title=hue.name)
-plt.xlabel("Storage Costs (in BU/hr)")
-plt.ylabel("Query Execution Cost (in BU)")
-# plt.title(f"{dataset.title()} dataset and {query.title()} use-case")
-if save_fig:
-    plt.savefig(plots_dir / f"{dataset}-{query}-costs.pdf")
 # %%
 sns.lineplot(data=_df, x="total_cost", y="duration", hue=hue, hue_order=hue.unique())
 plt.yscale("log")
