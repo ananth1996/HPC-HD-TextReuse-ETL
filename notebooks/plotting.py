@@ -682,13 +682,12 @@ for (bucket, sample), color in zip(
     # color = next(ax._get_lines.prop_cycler)["color"]
     ax.axvline(sample, color=color, linestyle="-", label=f"Bucket {bucket}")
 leg = ax.get_legend_handles_labels()
-# ax.get_legend().remove()
 # ax.legend(loc="center left", bbox_to_anchor=(1, 0.5))
 leg_ax.legend(*leg,borderaxespad=0)
 leg_ax.axis('off')
 ax.set_xlabel(r"$\texttt{sum_n_reuses}$")
 ax.set_ylabel("Frequency")
-fig.subplots_adjust(left=0.0,right=1,bottom=0,wspace=0.05)
+fig.subplots_adjust(right=1,wspace=0.1)
 if save_fig:
     fig.savefig(plots_dir / "quotes-hpc-hd-query-workload.pdf", bbox_inches="tight",pad_inches=0)
 # %%
@@ -696,15 +695,15 @@ hpc_hd_reception_stats = pd.read_csv(
     project_root / "data" / f"hpc-hd-num-reception-edges.csv"
 )
 hpc_hd_query_dists = reception_analysis.get_query_dists(hpc_hd_reception_stats)
-
-fig, (ax2) = plt.subplots(1, 1, figsize=(5, 5))
+figsize = np.array(set_size(columnwidth,subplots=(2,2)))
+fig, (ax,leg_ax) = plt.subplots(1, 2, figsize=figsize, width_ratios=[1,0.45])
 loglog_hist(
     hpc_hd_reception_stats.num_reception_edges,
-    ax=ax2,
+    ax=ax,
     **{
         "facecolor": "None",
         "ec": "black",
-        "label": "distribution",
+        "label": "Distribution",
         "histtype": "step",
         "linewidth": 2,
     },
@@ -713,20 +712,23 @@ prop_cycle = plt.rcParams["axes.prop_cycle"]
 colors = prop_cycle.by_key()["color"]
 
 for (bucket, low, high), color in zip(hpc_hd_query_dists.itertuples(), colors):
-    # color = next(ax2._get_lines.prop_cycler)["color"]
-    # ax2.axvline(low, color=color, linestyle="-",
+    # color = next(ax._get_lines.prop_cycler)["color"]
+    # ax.axvline(low, color=color, linestyle="-",
     # label=f"Bucket {bucket}")
-    # ax2.axvline(high, color=color, linestyle="-",)
+    # ax.axvline(high, color=color, linestyle="-",)
     # label=f"Bucket {bucket}")
-    ax2.axvspan(low, high, color=color, zorder=0, alpha=0.3, label=f"Bucket {bucket}")
-ax2.legend(loc="center left", bbox_to_anchor=(1, 0.5))
-ax2.set_xlabel("num reception edges")
-ax2.set_ylabel("frequency")
-ax2.set_title("Reception Query Workload Distribution")
-fig.savefig(
-    "/Users/mahadeva/Research/textreuse-pipeline-paper/figures/reception-hpc-hd-query-workload.pdf",
-    bbox_inches="tight",
-)
+    ax.axvspan(low, high, color=color, zorder=0, alpha=0.3, label=f"Bucket {bucket}")
+leg = ax.get_legend_handles_labels()
+leg_ax.legend(*leg,borderaxespad=0)
+leg_ax.axis('off')
+ax.set_xlabel("Number of reception edges")
+ax.set_ylabel("Frequency")
+fig.subplots_adjust(right=1,wspace=0.05)
+if save_fig:
+    fig.savefig(
+        plots_dir/"reception-hpc-hd-query-workload.pdf",
+        bbox_inches="tight", pad_inches = 0
+    )
 # fig.suptitle("HPC-HD dataset")
 # %%
 
