@@ -8,7 +8,7 @@ from sqlalchemy import text
 from db_utils import *
 import pandas as pd
 import numpy as np
-from time import perf_counter as time
+from collections import OrderedDict
 from IPython import get_ipython
 
 if get_ipython() is not None and __name__ == "__main__":
@@ -358,9 +358,33 @@ def get_running_times(query, dataset, data_dir=project_root / "data", hot_cache=
 
 
 # %%
+DATASET_MAP = {
+    "hpc-hd": r"$\textsc{Original}$",
+    "hpc-hd-newspapers": r"$\textsc{Large}$",
+}
+QUERY_TYPE_MAP = {
+    "standard": r"$\texttt{Standard}$",
+    "intermediate": r"$\texttt{Intermediate}$",
+    "denorm": r"$\texttt{Denorm}$",
+}
+SCHEMA_TYPE_MAP = OrderedDict({
+    "spark": r"$\texttt{Spark}$",
+    "rowstore": r"$\texttt{Aria}$",
+    "columnstore": r"$\texttt{Columnstore}$",
+})
 
 
+def remap_df(df):
+    return df.replace(
+        {
+            "schema": SCHEMA_TYPE_MAP,
+            "dataset": DATASET_MAP,
+            "query_type": QUERY_TYPE_MAP,
+        }
+    )
+#%%
 def plot_sizes(save_fig=False):
+    setup_matplotlib()
     _dfs = []
     for dataset in ["hpc-hd", "hpc-hd-newspapers"]:
         sizes = load_table_sizes(dataset)
@@ -378,18 +402,26 @@ def plot_sizes(save_fig=False):
     )
     sizes = pd.concat(_dfs)
     _sizes = sizes[sizes.TABLE_NAME.isin(necessary_tables)]
+    _sizes = remap_df(_sizes)
+    schema_order = list(SCHEMA_TYPE_MAP.values())
     _sizes_gb = _sizes.groupby(["dataset", "schema"]).total_size.sum().reset_index()
-    sns.barplot(data=_sizes_gb, x="schema", y="total_size", hue="dataset")
+    figsize=np.array(set_size(columnwidth,subplots=(1,1)))
+    fig,ax = plt.subplots(1,1,figsize=figsize)
+    sns.barplot(data=_sizes_gb, x="schema", y="total_size", hue="dataset",order=schema_order,ax=ax)
+    sns.move_legend(ax,loc="best",title="Dataset")
     # _sizes.groupby("schema").total_size.sum().plot(kind="bar")
-    plt.gca().yaxis.set_major_formatter(tkr.FuncFormatter(sizeof_fmt))
+    ax.yaxis.set_major_formatter(tkr.FuncFormatter(sizeof_fmt))
     # plt.xticks(rotation=90)
-    plt.ylabel(f"Total Size on Disk")
-    plt.xlabel("Storage Medium")
+    ax.set_ylabel(f"Total Data Size on Disk")
+    ax.set_xlabel("Framework")
+    fig.subplots_adjust(right=1)
     if save_fig:
         plt.savefig(
-            "/Users/mahadeva/Research/textreuse-pipeline-paper/figures/sizes.pdf",
+            plots_dir/"sizes.pdf",
             bbox_inches="tight",
+            pad_inches=0
         )
+    
     plt.figure(figsize=(10, 10))
     sns.barplot(
         data=_sizes, y="TABLE_NAME", x="total_size", hue="TABLE_SCHEMA", orient="h"
@@ -402,37 +434,10 @@ def plot_sizes(save_fig=False):
     plt.xlabel("Sizes (log scale)")
     if save_fig:
         plt.savefig(
-            "/Users/mahadeva/Research/textreuse-pipeline-paper/figures/sizes-breakdown.pdf",
+            plots_dir/"sizes-breakdown.pdf",
             bbox_inches="tight",
+            pad_inches=0
         )
-
-
-# %%
-DATASET_MAP = {
-    "hpc-hd": r"$\textsc{Original}$",
-    "hpc-hd-newspapers": r"$\textsc{Large}$",
-}
-QUERY_TYPE_MAP = {
-    "standard": r"$\texttt{Standard}$",
-    "intermediate": r"$\texttt{Intermediate}$",
-    "denorm": r"$\texttt{Denorm}$",
-}
-SCHEMA_TYPE_MAP = {
-    "spark": r"$\texttt{Spark}$",
-    "rowstore": r"$\texttt{Aria}$",
-    "columnstore": r"$\texttt{Columnstore}$",
-}
-
-
-def remap_df(df):
-    return df.replace(
-        {
-            "schema": SCHEMA_TYPE_MAP,
-            "dataset": DATASET_MAP,
-            "query_type": QUERY_TYPE_MAP,
-        }
-    )
-
 
 # plot_sizes()
 # %%
@@ -752,6 +757,11 @@ df["processing_cost"] = df.apply(
     lambda row: find_processing_cost(row.TABLE_SCHEMA, row.duration), axis=1
 )
 # %%
+
+
+
+#%% 
+## Checking results from hot cache 
 sizes = load_table_sizes(dataset)
 running_times = df
 query_table_sizes = get_query_types_table_sizes(query, sizes)
