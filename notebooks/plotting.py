@@ -438,8 +438,8 @@ def remap_df(df):
 # %%
 setup_matplotlib()
 dataset = "hpc-hd-newspapers"
-query = "quote"
-save_fig = True
+query = "reception"
+save_fig = False
 hot_cache = False
 plots_dir = Path("/Users/mahadeva/Research/textreuse-pipeline-paper/figures")
 sizes = load_table_sizes(dataset)
@@ -665,11 +665,13 @@ ax1.set_title("Query Ground Truth Distribution")
 
 fig.suptitle("HPC-HD dataset")
 # %%
-fig, (ax2) = plt.subplots(1, 1, figsize=(5, 5))
+setup_matplotlib()
+figsize = np.array(set_size(columnwidth,subplots=(2,2)))
+fig, (ax,leg_ax) = plt.subplots(1, 2, figsize=figsize,width_ratios=[1,0.45])
 loglog_hist(
     hpc_hd_stats.sum_n_works,
-    ax=ax2,
-    **{"alpha": 0.5, "ec": None, "label": "distribution"},
+    ax=ax,
+    **{"alpha": 0.5, "ec": None, "label": "Distribution"},
 )
 prop_cycle = plt.rcParams["axes.prop_cycle"]
 colors = prop_cycle.by_key()["color"]
@@ -677,16 +679,18 @@ colors = prop_cycle.by_key()["color"]
 for (bucket, sample), color in zip(
     enumerate(hpc_hd_samples.sum_n_works.values), colors
 ):
-    # color = next(ax2._get_lines.prop_cycler)["color"]
-    ax2.axvline(sample, color=color, linestyle="-", label=f"Bucket {bucket} sample")
-ax2.legend(loc="center left", bbox_to_anchor=(1, 0.5))
-ax2.set_xlabel("sum_n_works")
-ax2.set_ylabel("frequency")
-ax2.set_title("Top Quotes Query Workload Distribution")
+    # color = next(ax._get_lines.prop_cycler)["color"]
+    ax.axvline(sample, color=color, linestyle="-", label=f"Bucket {bucket}")
+leg = ax.get_legend_handles_labels()
+# ax.get_legend().remove()
+# ax.legend(loc="center left", bbox_to_anchor=(1, 0.5))
+leg_ax.legend(*leg,borderaxespad=0)
+leg_ax.axis('off')
+ax.set_xlabel(r"$\texttt{sum_n_reuses}$")
+ax.set_ylabel("Frequency")
+fig.subplots_adjust(left=0.0,right=1,bottom=0,wspace=0.05)
 if save_fig:
-    fig.savefig(plots_dir / "quotes-hpc-hd-query-workload.pdf", bbox_inches="tight")
-
-
+    fig.savefig(plots_dir / "quotes-hpc-hd-query-workload.pdf", bbox_inches="tight",pad_inches=0)
 # %%
 hpc_hd_reception_stats = pd.read_csv(
     project_root / "data" / f"hpc-hd-num-reception-edges.csv"
