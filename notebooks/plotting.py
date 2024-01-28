@@ -3,6 +3,7 @@ from tqdm.autonotebook import trange, tqdm
 from plot_utils import *
 import matplotlib.pyplot as plt
 import matplotlib.ticker as tkr
+import matplotlib.lines as mlines
 import seaborn as sns
 from sqlalchemy import text
 from db_utils import *
@@ -571,11 +572,11 @@ def plot_legend(legend_handlers):
 
 def plot_cost_trade_off_grid(save_fig=False):
     setup_matplotlib()
-    figsize = np.array(set_size(width=fullwidth, subplots=(2.4, 4)))
+    figsize = np.array(set_size(width=fullwidth, subplots=(1.8, 4)))
     # fig,(leg_ax,axes) = plt.subplots(2,3,,figsize=figsize)
     fig = plt.figure(figsize=figsize)
-    (leg_fig, plt_fig) = fig.subfigures(2, 1, height_ratios=[0.25, 1], hspace=0)
-    leg_ax = leg_fig.subplots(1, 1)
+    (leg_fig, plt_fig) = fig.subfigures(2, 1, height_ratios=[0.2, 1], hspace=0)
+    leg_ax1,leg_ax2 = leg_fig.subplots(1, 2)
     reception_fig, quote_fig = plt_fig.subfigures(1, 2, wspace=0.0)
     axes = []
     axes.extend(reception_fig.subplots(1, 2))
@@ -595,28 +596,60 @@ def plot_cost_trade_off_grid(save_fig=False):
 
     reception_fig.suptitle(QUERY_MAP["reception"])
     quote_fig.suptitle(QUERY_MAP["quote"])
-    reception_fig.supylabel("Query Execution Cost (in BU)")
+    fig.supylabel("Query Execution Cost (in BU)")
     fig.supxlabel("Storage Costs (in BU/hr)")
     # reception_fig.set_facecolor('coral')
     # quote_fig.set_facecolor('blue')
     # leg_fig.set_facecolor('green')
-    leg_ax.axis("off")
-    leg_ax.legend(
-        *legend,
+    # leg_ax.axis("off")
+    # leg_ax.legend(
+    #     *legend,
+    #     ncol=3,
+    #     loc="lower center",
+    #     borderaxespad=0,
+    #     frameon=False,
+    #     mode="expand",
+    #     markerscale=1.5,
+    # )
+
+    circle= mlines.Line2D([], [], markeredgecolor='black',markerfacecolor="none", marker='o', linestyle='None',
+                          markersize=10, label=SCHEMA_TYPE_MAP["rowstore"])
+    square = mlines.Line2D([], [], markeredgecolor='black',markerfacecolor="none", marker='s', linestyle='None',
+                            markersize=10, label=SCHEMA_TYPE_MAP["columnstore"])
+    diamond = mlines.Line2D([], [], markeredgecolor='black',markerfacecolor="none", marker='D', linestyle='None',
+                            markersize=10, label=SCHEMA_TYPE_MAP["spark"])
+    leg_ax1.axis("off")    
+    leg_ax1.legend(
+        handles=[circle,square,diamond],
+        title="Framework",
         ncol=3,
         loc="lower center",
         borderaxespad=0,
         frameon=False,
-        mode="expand",
+        # mode="expand",
+        markerscale=0.5,
     )
-    # reception_sub_fig.subplots_adjust(top=1)
-    # fig.subplots_adjust(wspace=0.3,top=0.9)
-    # fig.subplots_adjust(top=1)
-    leg_fig.subplots_adjust(right=0.99, top=1, left=0.1)
+
+    blue = mlines.Line2D([], [],color="tab:blue",label=QUERY_TYPE_MAP["denorm"],linewidth=2)
+    orange = mlines.Line2D([], [],color="tab:orange",label=QUERY_TYPE_MAP["intermediate"],linewidth=2)
+    green = mlines.Line2D([], [],color="tab:green",label=QUERY_TYPE_MAP["standard"],linewidth=2)
+    leg_ax2.axis("off")    
+    leg_ax2.legend(
+        handles=[blue,orange,green],
+        title="Normalization Level",
+        ncol=3,
+        loc="lower center",
+        borderaxespad=0,
+        frameon=False,
+        # mode="expand",
+        markerscale=1.5,
+    )
+
+    leg_fig.subplots_adjust(right=0.99, top=1, left=0.1,bottom=0)
     reception_fig.subplots_adjust(
-        right=0.99, wspace=0.25, top=0.825, bottom=0.2, left=0.15
+        right=0.99, wspace=0.25, top=0.825, bottom=0.21, left=0.17
     )
-    quote_fig.subplots_adjust(wspace=0.25, top=0.825, bottom=0.2, left=0.1)
+    quote_fig.subplots_adjust(wspace=0.25, top=0.825, bottom=0.21, left=0.1,right=0.92)
     if save_fig:
         fig.savefig(plots_dir / "trade-off-plot.pdf", bbox_inches="tight", pad_inches=0)
 
@@ -876,9 +909,9 @@ plot_top_quotes_workload(save_fig=save_fig)
 # %%
 plot_reception_workload(save_fig=save_fig)
 # %%
-plot_latency_query("reception",save_fig=True)
+plot_latency_query("reception",save_fig=save_fig)
 #%%
-plot_latency_query("quote",save_fig=True)
+plot_latency_query("quote",save_fig=save_fig)
 
 
 
@@ -978,10 +1011,10 @@ plt.xlabel("Storage Costs (in BU/hr)")
 plt.ylabel("Query Processing Cost (in BU)")
 plt.title(f"{dataset.title()} dataset and {query.title()} use-case")
 # %%
-tmp = _df.query("query_dists_id==6 and query_type=='denorm'")
-pdf = tmp.pivot(index="doc_id", columns="num_runs", values="duration")
-print(f"Cold cache mean: {pdf[1].mean()} hot-cache mean: {pdf[2].mean()}")
-print(
-    f"Cold mean fixex: {pdf[~pdf[2].isna()][1].mean()} hot-cache mean: {pdf[2].mean()}"
-)
+tmp = _df.query("query_dists_id== and query_type=='denorm'")
+pdf = tmp.pivot(index="doc_id", columns="num_runs", values=["duration","ground_truth"])
+# print(f"Cold cache mean: {pdf[1].mean()} hot-cache mean: {pdf[2].mean()}")
+# print(
+#     f"Cold mean fixex: {pdf[~pdf[2].isna()][1].mean()} hot-cache mean: {pdf[2].mean()}"
+# )
 # %%
