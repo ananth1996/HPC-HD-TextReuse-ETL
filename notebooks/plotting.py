@@ -372,7 +372,7 @@ DATASET_MAP = {
 QUERY_TYPE_MAP = {
     "standard": r"$\texttt{Standard}$",
     "intermediate": r"$\texttt{Intermediate}$",
-    "denorm": r"$\texttt{Denorm}$",
+    "denorm": r"$\texttt{Denormalized}$",
 }
 SCHEMA_TYPE_MAP = OrderedDict(
     {
@@ -513,9 +513,9 @@ def get_hue_and_palette(df):
     hue = hue.sort_values()
     hue.name = "Normalization | Framework"
     hue_color = {
-        r"$\texttt{Denorm}$ | $\texttt{Aria}$": "tab:blue",
-        r"$\texttt{Denorm}$ | $\texttt{Columnstore}$": "tab:blue",
-        r"$\texttt{Denorm}$ | $\texttt{Spark}$": "tab:blue",
+        r"$\texttt{Denormalized}$ | $\texttt{Aria}$": "tab:blue",
+        r"$\texttt{Denormalized}$ | $\texttt{Columnstore}$": "tab:blue",
+        r"$\texttt{Denormalized}$ | $\texttt{Spark}$": "tab:blue",
         r"$\texttt{Intermediate}$ | $\texttt{Aria}$": "tab:orange",
         r"$\texttt{Intermediate}$ | $\texttt{Columnstore}$": "tab:orange",
         r"$\texttt{Intermediate}$ | $\texttt{Spark}$": "tab:orange",
@@ -753,7 +753,7 @@ def plot_top_quotes_workload(save_fig=False):
     leg_ax.legend(*leg, borderaxespad=0)
     leg_ax.axis("off")
     ax.set_xlabel(r"$\texttt{sum_n_reuses}$")
-    ax.set_ylabel("Frequency")
+    ax.set_ylabel("Number of edition sets")
     fig.subplots_adjust(right=1, wspace=0.1)
     if save_fig:
         fig.savefig(
@@ -797,7 +797,7 @@ def plot_reception_workload(save_fig=False):
     leg_ax.legend(*leg, borderaxespad=0)
     leg_ax.axis("off")
     ax.set_xlabel("Number of reception edges")
-    ax.set_ylabel("Frequency")
+    ax.set_ylabel("Number of Documents")
     fig.subplots_adjust(right=1, wspace=0.05)
     if save_fig:
         fig.savefig(
@@ -832,10 +832,10 @@ def _plot_latency(dataset, query, framework, ax=None):
 
 def plot_latency_query(query,save_fig=False):
     setup_matplotlib()
-    figsize = np.array(set_size(fullwidth, subplots=(2.1, 3)))
+    figsize = np.array(set_size(fullwidth, subplots=(1.8, 3)))
     fig = plt.figure(figsize=figsize)
     leg_fig, hpc_hd_fig, hpc_hd_newspapers_fig = fig.subfigures(
-        3, 1, height_ratios=[0.1, 1, 1]
+        3, 1, height_ratios=[0.1, 1, 1], hspace=0
     )
     dataset = "hpc-hd"
     axes = hpc_hd_fig.subplots(1, 3, sharex=True, sharey=True)
@@ -849,7 +849,10 @@ def plot_latency_query(query,save_fig=False):
         ax.set_xticklabels([])
         ax.set_ylabel("")
 
-    hpc_hd_fig.suptitle(f"(a) {DATASET_MAP['hpc-hd']} Dataset", y=0, va="bottom")
+    # hpc_hd_fig.suptitle(f"(a) {DATASET_MAP['hpc-hd']} Dataset", y=0, va="bottom")
+    hpc_hd_fig.supylabel(
+        f"(a) {DATASET_MAP['hpc-hd']}", x=0.925,y=0.5, ha= "right"
+    )
 
     dataset = "hpc-hd-newspapers"
     axes = hpc_hd_newspapers_fig.subplots(1, 3, sharex=True, sharey=True)
@@ -863,8 +866,11 @@ def plot_latency_query(query,save_fig=False):
         ax.set_ylabel("")
         ax.set_title("")
 
-    hpc_hd_newspapers_fig.suptitle(
-        f"(b) {DATASET_MAP['hpc-hd-newspapers']} Dataset", y=0, va="bottom"
+    # hpc_hd_newspapers_fig.suptitle(
+    #     f"(b) {DATASET_MAP['hpc-hd-newspapers']} Dataset", y=0, va="bottom"
+    # )
+    hpc_hd_newspapers_fig.supylabel(
+        f"(b) {DATASET_MAP['hpc-hd-newspapers']}", x=0.925,y=0.55, ha= "right",va="center"
     )
 
     # hpc_hd_fig.set_facecolor('coral')
@@ -877,18 +883,18 @@ def plot_latency_query(query,save_fig=False):
     )
     leg_ax.axis("off")
 
-    hpc_hd_fig.subplots_adjust(bottom=0.15, left=0.1, top=0.85, wspace=0.1)
-    hpc_hd_newspapers_fig.subplots_adjust(bottom=0.25, left=0.1, top=0.95, wspace=0.1)
-    leg_fig.subplots_adjust(top=1, left=0.1)
+    hpc_hd_fig.subplots_adjust(bottom=0.03, left=0.085, top=0.88, wspace=0.1)
+    hpc_hd_newspapers_fig.subplots_adjust(bottom=0.12, left=0.085, top=0.93, wspace=0.1)
+    leg_fig.subplots_adjust(top=1, bottom=0.1, left=0.1)
     fig.supylabel("Query Latency")
-    fig.supxlabel("Workload", va="top", y=-0.01)
+    fig.supxlabel("Workload", va="top", y=-0.03)
     if save_fig:
         fig.savefig(plots_dir/f"{query}-latency.pdf",bbox_inches="tight",pad_inches=0)
 
 # %%
 setup_matplotlib()
 dataset = "hpc-hd-newspapers"
-query = "reception"
+query = "quote"
 save_fig = False
 hot_cache = False
 plots_dir = Path("/Users/mahadeva/Research/textreuse-pipeline-paper/figures")
@@ -912,7 +918,7 @@ plot_reception_workload(save_fig=save_fig)
 plot_latency_query("reception",save_fig=save_fig)
 #%%
 plot_latency_query("quote",save_fig=save_fig)
-
+#%%
 
 
 
