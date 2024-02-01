@@ -471,21 +471,22 @@ def get_results_df(dataset, query, hot_cache=False):
 
 def get_trade_off_dataframe(dataset, query):
     running_times = get_results_df(dataset, query)
-    if dataset == "hpc-hd-newspapers" and query == "quote":
-        _df = running_times.query("query_dists_id<7")
-    elif dataset == "hpc-hd" and query == "quote":
-        _df = running_times.query("query_dists_id<10")
-    elif dataset == "hpc-hd" and query == "reception":
-        _df = running_times.query("query_dists_id<9")
-    elif dataset == "hpc-hd-newspapers" and query == "reception":
-        _df = running_times.query("query_dists_id<9")
-    else:
-        _df = running_times
+    # if dataset == "hpc-hd-newspapers" and query == "quote":
+    #     _df = running_times.query("query_dists_id<7")
+    # elif dataset == "hpc-hd" and query == "quote":
+    #     _df = running_times.query("query_dists_id<10")
+    # elif dataset == "hpc-hd" and query == "reception":
+    #     _df = running_times.query("query_dists_id<9")
+    # elif dataset == "hpc-hd-newspapers" and query == "reception":
+    #     _df = running_times.query("query_dists_id<9")
+    # else:
+    #     _df = running_times
+    _df = running_times
     _df = remap_df(_df)
     return _df
 
 
-def plot_latency_size_tradeoff(df):
+def plot_latency_size_tradeoff(df): 
     hue, palette = get_hue_and_palette(df)
     sns.pointplot(
         data=df,
@@ -714,7 +715,7 @@ def plot_hot_cache_latency(save_fig=False):
     )
     ax.set_yscale("log")
     ax.set_ylabel("Query Latency")
-    ax.set_xlabel("Workload")
+    ax.set_xlabel("Bucket Number")
     ax.set_title(SCHEMA_TYPE_MAP["rowstore"])
     ax.legend(title="")
     if save_fig:
@@ -832,7 +833,7 @@ def _plot_latency(dataset, query, framework, ax=None):
 
 def plot_latency_query(query,save_fig=False):
     setup_matplotlib()
-    figsize = np.array(set_size(fullwidth, subplots=(1.8, 3)))
+    figsize = np.array(set_size(fullwidth, subplots=(1.5, 3)))
     fig = plt.figure(figsize=figsize)
     leg_fig, hpc_hd_fig, hpc_hd_newspapers_fig = fig.subfigures(
         3, 1, height_ratios=[0.1, 1, 1], hspace=0
@@ -848,10 +849,11 @@ def plot_latency_query(query,save_fig=False):
         ax.set_xlabel("")
         ax.set_xticklabels([])
         ax.set_ylabel("")
+        # ax.axhline(y=5*60)
 
     # hpc_hd_fig.suptitle(f"(a) {DATASET_MAP['hpc-hd']} Dataset", y=0, va="bottom")
     hpc_hd_fig.supylabel(
-        f"(a) {DATASET_MAP['hpc-hd']}", x=0.925,y=0.5, ha= "right"
+        f"(a) {DATASET_MAP['hpc-hd']}", x=0.985,y=0.5, ha= "right"
     )
 
     dataset = "hpc-hd-newspapers"
@@ -865,12 +867,13 @@ def plot_latency_query(query,save_fig=False):
         ax.set_xlabel("")
         ax.set_ylabel("")
         ax.set_title("")
+        # ax.axhline(y=5*60)
 
     # hpc_hd_newspapers_fig.suptitle(
     #     f"(b) {DATASET_MAP['hpc-hd-newspapers']} Dataset", y=0, va="bottom"
     # )
     hpc_hd_newspapers_fig.supylabel(
-        f"(b) {DATASET_MAP['hpc-hd-newspapers']}", x=0.925,y=0.55, ha= "right",va="center"
+        f"(b) {DATASET_MAP['hpc-hd-newspapers']}", x=0.985,y=0.55, ha= "right",va="center"
     )
 
     # hpc_hd_fig.set_facecolor('coral')
@@ -883,11 +886,11 @@ def plot_latency_query(query,save_fig=False):
     )
     leg_ax.axis("off")
 
-    hpc_hd_fig.subplots_adjust(bottom=0.03, left=0.085, top=0.88, wspace=0.1)
-    hpc_hd_newspapers_fig.subplots_adjust(bottom=0.12, left=0.085, top=0.93, wspace=0.1)
-    leg_fig.subplots_adjust(top=1, bottom=0.1, left=0.1)
+    hpc_hd_fig.subplots_adjust(bottom=0.03, left=0.085, top=0.85, wspace=0.1,right=0.95)
+    hpc_hd_newspapers_fig.subplots_adjust(bottom=0.12, left=0.085, top=0.92, wspace=0.1,right=0.95)
+    leg_fig.subplots_adjust(top=1, bottom=0.12, left=0.1)
     fig.supylabel("Query Latency")
-    fig.supxlabel("Workload", va="top", y=-0.03)
+    fig.supxlabel("Bucket Number", va="top", y=-0.03)
     if save_fig:
         fig.savefig(plots_dir/f"{query}-latency.pdf",bbox_inches="tight",pad_inches=0)
 
@@ -900,6 +903,13 @@ hot_cache = False
 plots_dir = Path("/Users/mahadeva/Research/textreuse-pipeline-paper/figures")
 running_times = get_results_df(dataset, query, hot_cache=hot_cache)
 
+for schema in running_times.schema.unique():
+    _df = running_times.query(f"schema=='{schema}'")
+    __df = _df.pivot(index="query_dists_id",columns="query_type",values="duration")
+    speedup = (__df['standard']/__df['denorm'])
+    print(dataset,schema)
+    print(speedup)
+    print(speedup.mean())
 # %%
 df = get_trade_off_dataframe(dataset, query)
 # %%
