@@ -284,21 +284,23 @@ def jdbc_opts(conn,database:str):
         .option("batchsize",db_details["batchsize"]))
 
 
-def load_table(spark:SparkSession,table:str,bucket:str,database:str,schema:str,index:str) -> Dict[str,float]:
+def load_table(spark:SparkSession,table:str,bucket:str,database:str,schema:str,index:str,table_name:Optional[str]=None) -> Dict[str,float]:
     # load spark table
     df = get_s3(spark,table,bucket)
     engine = get_sqlalchemy_engine(database)
     start = time()
+    if table_name is None:
+        table_name = table
     with engine.connect() as conn:
         # drop table if present
-        conn.execute(text(f"DROP TABLE IF EXISTS  {table}"))
+        conn.execute(text(f"DROP TABLE IF EXISTS  {table_name}"))
         # create table with schema
         conn.execute(text(schema))
         print("Loading table into database")
         # load the table
         (
             jdbc_opts(df.write,database=database)
-            .option("dbtable", table) 
+            .option("dbtable", table_name) 
             .option("truncate", "true")
             .mode("overwrite")
             .save()
@@ -306,7 +308,7 @@ def load_table(spark:SparkSession,table:str,bucket:str,database:str,schema:str,i
         load_time = time() - start
         print("Checking Sizes")
         # check row counts
-        database_count = conn.execute(text(f"SELECT COUNT(*) FROM {table}")).fetchall()[0][0]
+        database_count = conn.execute(text(f"SELECT COUNT(*) FROM {table_name}")).fetchall()[0][0]
         spark_count = df.count()
         assert database_count == spark_count
         print("Creating Index")
