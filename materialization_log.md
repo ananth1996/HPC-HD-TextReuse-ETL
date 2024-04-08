@@ -46,7 +46,7 @@ Internal error: TupleAnnexStep::executeParallelOrderBy() MCS-2018: Not enough me
 
 ### Indexing in Aria 
 
-3096.556833673734	seconds
+3096.556833673734 seconds
 
 
 ### Columnstore Bulk Loading 
@@ -56,7 +56,59 @@ Internal error: TupleAnnexStep::executeParallelOrderBy() MCS-2018: Not enough me
 
 # Source piece source_piece_statistics_denorm
 
+## Aria 
 
+```sql
+MariaDB [hpc-hd-newspapers]> INSERT INTO temp (piece_id,cluster_id,trs_id,piece_length,num_reception_edges,num_different_work_ids,num_work_ids_different_authors,trs_start,trs_end,edition_id_i)
+    -> WITH source_piece_statistics AS (
+    -> SELECT
+    ->     src_piece_id AS piece_id,
+    ->     MIN(cdp.cluster_id) AS cluster_id,
+    ->     MIN(dp_src.trs_end)-MIN(dp_src.trs_start) as piece_length,
+    ->     COUNT(*) AS num_reception_edges,
+    ->     COUNT(
+    ->         DISTINCT
+    ->         CASE
+    ->             WHEN twm_src.work_id_i <> twm_dst.work_id_i THEN twm_dst.work_id_i
+    ->             ELSE NULL
+    ->         END ) AS num_different_work_ids,
+    ->     COUNT(
+    ->         DISTINCT
+    ->         (CASE
+    ->             -- if source has an author
+    ->             WHEN ea_src.actor_id_i IS NOT NULL AND
+    ->             -- and the destination author is different or NULL
+    ->             (ea_src.actor_id_i <> ea_dst.actor_id_i OR ea_dst.actor_id_i IS NULL)
+    ->             -- count the work_id of the destination
+    ->             THEN twm_dst.work_id_i
+    ->             -- if source author is not there then count destination works
+    ->             WHEN ea_src.actor_id_i IS NULL THEN twm_dst.work_id_i
+    ->             ELSE NULL
+    ->         END)) AS num_work_ids_different_authors
+    -> FROM reception_edges re
+    -> INNER JOIN defrag_pieces dp_src ON re.src_piece_id = dp_src.piece_id
+    -> INNER JOIN textreuse_edition_mapping tem_src ON tem_src.trs_id = dp_src.trs_id
+    -> INNER JOIN edition_authors ea_src ON ea_src.edition_id_i = tem_src.edition_id_i
+    -> INNER JOIN textreuse_work_mapping twm_src ON twm_src.trs_id = dp_src.trs_id
+    -> INNER JOIN clustered_defrag_pieces cdp ON re.src_piece_id = cdp.piece_id
+    -> -- destination pieces
+    -> INNER JOIN defrag_pieces dp_dst ON re.dst_piece_id = dp_dst.piece_id
+    -> INNER JOIN textreuse_edition_mapping tem_dst ON tem_dst.trs_id = dp_dst.trs_id
+    -> INNER JOIN edition_authors ea_dst ON ea_dst.edition_id_i = tem_dst.edition_id_i
+    -> INNER JOIN textreuse_work_mapping twm_dst ON twm_dst.trs_id = dp_dst.trs_id
+    -> GROUP BY src_piece_id
+    -> )
+    -> SELECT piece_id,cluster_id,trs_id,piece_length,num_reception_edges,num_different_work_ids,num_work_ids_different_authors,trs_start,trs_end,edition_id_i
+    -> FROM
+    ->     source_piece_statistics
+    ->     INNER JOIN defrag_pieces USING(piece_id)
+    ->     INNER JOIN textreuse_edition_mapping USING(trs_id);
+
+^CCtrl-C -- query killed. Continuing normally.
+ERROR 1317 (70100): Query execution was interrupted
+```
+
+Took > 135626 seconds
 ## Spark 
 
 ### Asset creation 
@@ -74,3 +126,53 @@ source_piece_statistics_denorm: 2 min 14 sec
 ### Columnstore Bulk Loading 
 
 5 min 13.100 sec
+
+# For reception_edges_denorm 
+
+
+## Columnstore 
+
+MariaDB [hpc-hd-newspapers-columnstore]> INSERT INTO temp (src_trs_id,src_trs_start,src_trs_end,dst_trs_id,dst_trs_start,dst_trs_end)
+    -> WITH reception_edges AS (
+    ->     SELECT ewapbca.piece_id as src_piece_id, nsp.piece_id as dst_piece_id
+    ->     FROM earliest_work_and_pieces_by_cluster ewapbca
+    ->     INNER JOIN non_source_pieces nsp USING(cluster_id)
+    -> )
+    -> SELECT
+    ->     dp1.trs_id AS src_trs_id,
+    ->     dp1.trs_start AS src_trs_start,
+    ->     dp1.trs_end AS src_trs_end,
+    ->     dp2.trs_id AS dst_trs_id,
+    ->     dp2.trs_start AS dst_trs_start,
+    ->     dp2.trs_end AS dst_trs_end
+    -> FROM
+    -> reception_edges re
+    -> INNER JOIN defrag_pieces dp1 ON re.src_piece_id = dp1.piece_id
+    -> INNER JOIN defrag_pieces dp2 ON re.dst_piece_id = dp2.piece_id;
+ERROR 1815 (HY000): Internal error: (437) MCS-2001: Join or subselect exceeds memory limit.
+
+## Rowstore 
+
+
+## Spark 
+
+
+### Asset creation 
+
+- reception_edges : 4 min 53 sec
+- reception_edges_denorm: 9 min 19 sec
+
+### Bulk Loading 
+
+2.5 hours
+
+### Aria Index Creation 
+
+4 hours 19 min 10.855 sec
+
+### Columnstore Bulk Loading 
+
+7 hours 41 min 59.124 sec
+
+
+
