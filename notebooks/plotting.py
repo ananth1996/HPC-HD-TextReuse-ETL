@@ -39,8 +39,13 @@ from spark_utils_alternate import (
 
 # %%
 
-columnwidth = 241.1474
-fullwidth = 506.295
+# paper 
+# columnwidth = 241.1474
+# fullwidth = 506.295
+
+# thesis 
+columnwidth = 355.65944
+fullwidth = 355.65944
 
 QUERY_MAP = {"reception": "Reception", "quote": "Top Quotes"}
 
@@ -403,53 +408,86 @@ def plot_sizes(save_fig=False):
         sizes["dataset"] = sizes.TABLE_SCHEMA.str.rsplit("-", n=1).str[0]
         _dfs.append(sizes)
 
-    necessary_tables = list(
-        {
-            table
-            for _, materialisations in QUERY_TABLES_MAP.items()
-            for _, tables in materialisations.items()
-            for table in tables
-        }
-    )
+    # necessary_tables = list(
+    #     {
+    #         table
+    #         for _, materialisations in QUERY_TABLES_MAP.items()
+    #         for _, tables in materialisations.items()
+    #         for table in tables
+    #     }
+    # )
+    necessary_tables = [
+        "reception_edges_denorm",
+        "source_piece_statistics_denorm",
+        "non_source_pieces",
+    ]
     sizes = pd.concat(_dfs)
     _sizes = sizes[sizes.TABLE_NAME.isin(necessary_tables)]
     _sizes = remap_df(_sizes)
     schema_order = list(SCHEMA_TYPE_MAP.values())
-    _sizes_gb = _sizes.groupby(["dataset", "schema"]).total_size.sum().reset_index()
-    figsize = np.array(set_size(columnwidth, subplots=(1, 1)))
-    fig, ax = plt.subplots(1, 1, figsize=figsize)
-    sns.barplot(
-        data=_sizes_gb,
-        x="schema",
-        y="total_size",
-        hue="dataset",
-        order=schema_order,
-        ax=ax,
-    )
-    sns.move_legend(ax, loc="best", title="Dataset")
-    # _sizes.groupby("schema").total_size.sum().plot(kind="bar")
-    ax.yaxis.set_major_formatter(tkr.FuncFormatter(sizeof_fmt))
-    # plt.xticks(rotation=90)
-    ax.set_ylabel(f"Total Data Size on Disk")
-    ax.set_xlabel("Framework")
-    fig.subplots_adjust(right=1)
-    if save_fig:
-        plt.savefig(plots_dir / "sizes.pdf", bbox_inches="tight", pad_inches=0)
-
-    plt.figure(figsize=(10, 10))
-    sns.barplot(
-        data=_sizes, y="TABLE_NAME", x="total_size", hue="TABLE_SCHEMA", orient="h"
-    )
-    plt.xscale("log", base=2)
-    plt.gca().xaxis.set_major_formatter(tkr.FuncFormatter(sizeof_fmt))
-    # plt.xticks(rotation=90)
-    plt.legend(bbox_to_anchor=(1, 0.5), loc="upper left")
-    plt.title(f"Table Sizes (Data + Indexes)")
-    plt.xlabel("Sizes (log scale)")
-    if save_fig:
-        plt.savefig(
-            plots_dir / "sizes-breakdown.pdf", bbox_inches="tight", pad_inches=0
+    # _sizes_gb = _sizes.groupby(["dataset", "schema"]).total_size.sum().reset_index()
+    figsize = np.array(set_size(columnwidth, subplots=(1.5, 2)))
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize, sharey=True)
+    table_rename = {
+        "non_source_pieces": r"\texttt{destination_pieces}",
+        "reception_edges_denorm": r"\texttt{reception_edges}",
+        "source_piece_statistics_denorm": r"\texttt{source_piece_metrics}",
+    }
+    hue = {
+        r"\texttt{destination_pieces}": "tab:red",
+        r"\texttt{reception_edges}": "tab:purple",
+        r"\texttt{source_piece_metrics}": "tab:olive",
+    }
+    _sizes = _sizes.replace({"TABLE_NAME": table_rename})
+    for dataset, ax in zip(DATASET_MAP.values(), [ax1, ax2]):
+        sns.barplot(
+            data=_sizes[_sizes.dataset == dataset],
+            y="schema",
+            x="total_size",
+            hue="TABLE_NAME",
+            palette=hue,
+            order=schema_order,
+            ax=ax,
+            orient="h",
         )
+        ax.xaxis.set_major_formatter(tkr.FuncFormatter(sizeof_fmt))
+        ax.set_title(dataset)
+        ax.set_ylabel("")
+        ax.set_xlabel("")
+        ax.get_legend().remove()
+    fig.supxlabel("Data Storage Size", y=-0.2)
+    fig.subplots_adjust(wspace=0.1)
+    plt.legend(
+        bbox_to_anchor=(0.5, 1.2),
+        # loc="center right",
+        loc="upper center",ncol=3,
+        columnspacing=1,
+        bbox_transform=fig.transFigure,
+        borderaxespad=0,
+        frameon=False,
+    )
+    # _sizes.groupby("schema").total_size.sum().plot(kind="bar")
+    # # plt.xticks(rotation=90)
+    # ax.set_ylabel(f"Total Data Size on Disk")
+    # ax.set_xlabel("Framework")
+    # fig.subplots_adjust(right=1)
+    # if save_fig:
+    #     plt.savefig(plots_dir / "sizes.pdf", bbox_inches="tight", pad_inches=0)
+
+    # plt.figure(figsize=(10, 10))
+    # sns.barplot(
+    #     data=_sizes, y="TABLE_NAME", x="total_size", hue="TABLE_SCHEMA", orient="h"
+    # )
+    # plt.xscale("log", base=2)
+    # plt.gca().xaxis.set_major_formatter(tkr.FuncFormatter(sizeof_fmt))
+    # # plt.xticks(rotation=90)
+    # plt.legend(bbox_to_anchor=(1, 0.5), loc="upper left")
+    # plt.title(f"Table Sizes (Data + Indexes)")
+    # plt.xlabel("Sizes (log scale)")
+    # if save_fig:
+    #     plt.savefig(
+    #         plots_dir / "sizes-breakdown.pdf", bbox_inches="tight", pad_inches=0
+    #     )
 
 
 # plot_sizes()
@@ -486,7 +524,7 @@ def get_trade_off_dataframe(dataset, query):
     return _df
 
 
-def plot_latency_size_tradeoff(df): 
+def plot_latency_size_tradeoff(df):
     hue, palette = get_hue_and_palette(df)
     sns.pointplot(
         data=df,
@@ -577,7 +615,7 @@ def plot_cost_trade_off_grid(save_fig=False):
     # fig,(leg_ax,axes) = plt.subplots(2,3,,figsize=figsize)
     fig = plt.figure(figsize=figsize)
     (leg_fig, plt_fig) = fig.subfigures(2, 1, height_ratios=[0.2, 1], hspace=0)
-    leg_ax1,leg_ax2 = leg_fig.subplots(1, 2)
+    leg_ax1, leg_ax2 = leg_fig.subplots(1, 2)
     reception_fig, quote_fig = plt_fig.subfigures(1, 2, wspace=0.0)
     axes = []
     axes.extend(reception_fig.subplots(1, 2))
@@ -595,8 +633,8 @@ def plot_cost_trade_off_grid(save_fig=False):
         ax.set_ylabel("")
         ax.set_title(f"{df.dataset.iloc[0]}")
 
-    reception_fig.suptitle(QUERY_MAP["reception"])
-    quote_fig.suptitle(QUERY_MAP["quote"])
+    reception_fig.suptitle(QUERY_MAP["reception"],fontsize="large",x=0.55)
+    quote_fig.suptitle(QUERY_MAP["quote"],fontsize="large")
     fig.supylabel("Query Execution Cost (in BU)")
     fig.supxlabel("Storage Costs (in BU/hr)")
     # reception_fig.set_facecolor('coral')
@@ -613,15 +651,39 @@ def plot_cost_trade_off_grid(save_fig=False):
     #     markerscale=1.5,
     # )
 
-    circle= mlines.Line2D([], [], markeredgecolor='black',markerfacecolor="none", marker='o', linestyle='None',
-                          markersize=10, label=SCHEMA_TYPE_MAP["rowstore"])
-    square = mlines.Line2D([], [], markeredgecolor='black',markerfacecolor="none", marker='s', linestyle='None',
-                            markersize=10, label=SCHEMA_TYPE_MAP["columnstore"])
-    diamond = mlines.Line2D([], [], markeredgecolor='black',markerfacecolor="none", marker='D', linestyle='None',
-                            markersize=10, label=SCHEMA_TYPE_MAP["spark"])
-    leg_ax1.axis("off")    
+    circle = mlines.Line2D(
+        [],
+        [],
+        markeredgecolor="black",
+        markerfacecolor="none",
+        marker="o",
+        linestyle="None",
+        markersize=10,
+        label=SCHEMA_TYPE_MAP["rowstore"],
+    )
+    square = mlines.Line2D(
+        [],
+        [],
+        markeredgecolor="black",
+        markerfacecolor="none",
+        marker="s",
+        linestyle="None",
+        markersize=10,
+        label=SCHEMA_TYPE_MAP["columnstore"],
+    )
+    diamond = mlines.Line2D(
+        [],
+        [],
+        markeredgecolor="black",
+        markerfacecolor="none",
+        marker="D",
+        linestyle="None",
+        markersize=10,
+        label=SCHEMA_TYPE_MAP["spark"],
+    )
+    leg_ax1.axis("off")
     leg_ax1.legend(
-        handles=[circle,square,diamond],
+        handles=[circle, square, diamond],
         title="Framework",
         ncol=3,
         loc="lower center",
@@ -631,12 +693,18 @@ def plot_cost_trade_off_grid(save_fig=False):
         markerscale=0.5,
     )
 
-    blue = mlines.Line2D([], [],color="tab:blue",label=QUERY_TYPE_MAP["denorm"],linewidth=2)
-    orange = mlines.Line2D([], [],color="tab:orange",label=QUERY_TYPE_MAP["intermediate"],linewidth=2)
-    green = mlines.Line2D([], [],color="tab:green",label=QUERY_TYPE_MAP["standard"],linewidth=2)
-    leg_ax2.axis("off")    
+    blue = mlines.Line2D(
+        [], [], color="tab:blue", label=QUERY_TYPE_MAP["denorm"], linewidth=2
+    )
+    orange = mlines.Line2D(
+        [], [], color="tab:orange", label=QUERY_TYPE_MAP["intermediate"], linewidth=2
+    )
+    green = mlines.Line2D(
+        [], [], color="tab:green", label=QUERY_TYPE_MAP["standard"], linewidth=2
+    )
+    leg_ax2.axis("off")
     leg_ax2.legend(
-        handles=[blue,orange,green],
+        handles=[blue, orange, green],
         title="Normalization Level",
         ncol=3,
         loc="lower center",
@@ -646,11 +714,11 @@ def plot_cost_trade_off_grid(save_fig=False):
         markerscale=1.5,
     )
 
-    leg_fig.subplots_adjust(right=0.99, top=1, left=0.1,bottom=0)
+    leg_fig.subplots_adjust(right=0.99, top=1, left=0.1, bottom=0)
     reception_fig.subplots_adjust(
         right=0.99, wspace=0.25, top=0.825, bottom=0.21, left=0.17
     )
-    quote_fig.subplots_adjust(wspace=0.25, top=0.825, bottom=0.21, left=0.1,right=0.92)
+    quote_fig.subplots_adjust(wspace=0.25, top=0.825, bottom=0.21, left=0.1, right=0.92)
     if save_fig:
         fig.savefig(plots_dir / "trade-off-plot.pdf", bbox_inches="tight", pad_inches=0)
 
@@ -729,6 +797,8 @@ def plot_hot_cache_latency(save_fig=False):
 def plot_top_quotes_workload(save_fig=False):
     setup_matplotlib()
     hpc_hd_stats = quote_analysis.get_statistics("hpc-hd", threshold=0)
+    hpc_hd_stats = quote_analysis.get_statistics("hpc-hd", threshold=100)
+    hpc_hd_dists = quote_analysis.get_query_dists(hpc_hd_stats)
     hpc_hd_samples = quote_analysis.get_samples("hpc-hd")
     hpc_hd_samples = hpc_hd_samples.merge(
         hpc_hd_stats, on=["edition_id", "ground_truth"]
@@ -738,23 +808,38 @@ def plot_top_quotes_workload(save_fig=False):
     loglog_hist(
         hpc_hd_stats.sum_n_works,
         ax=ax,
-        **{"alpha": 0.5, "ec": None, "label": "Distribution"},
+        **{
+            "facecolor": "None",
+            "ec": "black",
+            "label": "Distribution",
+            "histtype": "step",
+            "linewidth": 2,
+        },
     )
     prop_cycle = plt.rcParams["axes.prop_cycle"]
     colors = prop_cycle.by_key()["color"]
 
-    ax.axvline(100, color="black", linestyle="--", label=f"Threshold")
-    for (bucket, sample), color in zip(
-        enumerate(hpc_hd_samples.sum_n_works.values), colors
-    ):
+    # ax.axvline(100, color="black", linestyle="--", label=f"Threshold")
+    for (bucket, low, high), color in zip(hpc_hd_dists.itertuples(), colors):
         # color = next(ax._get_lines.prop_cycler)["color"]
-        ax.axvline(sample, color=color, linestyle="-", label=f"Sample {bucket}")
+        # ax.axvline(low, color=color, linestyle="-",
+        # label=f"Bucket {bucket}")
+        # ax.axvline(high, color=color, linestyle="-",)
+        # label=f"Bucket {bucket}")
+        ax.axvspan(
+            low, high, color=color, zorder=0, alpha=0.3, label=f"Bucket {bucket}"
+        )
+    # for (bucket, sample), color in zip(
+    #     enumerate(hpc_hd_samples.sum_n_works.values), colors
+    # ):
+    #     # color = next(ax._get_lines.prop_cycler)["color"]
+    #     ax.axvline(sample, color=color, linestyle="-", label=f"Sample {bucket}")
     leg = ax.get_legend_handles_labels()
     # ax.legend(loc="center left", bbox_to_anchor=(1, 0.5))
     leg_ax.legend(*leg, borderaxespad=0)
     leg_ax.axis("off")
     ax.set_xlabel(r"$\texttt{sum_n_reuses}$")
-    ax.set_ylabel("Number of edition sets")
+    ax.set_ylabel("Number of groups")
     fig.subplots_adjust(right=1, wspace=0.1)
     if save_fig:
         fig.savefig(
@@ -807,6 +892,7 @@ def plot_reception_workload(save_fig=False):
             pad_inches=0,
         )
 
+
 def _plot_latency(dataset, query, framework, ax=None):
     if ax is None:
         fig, ax = plt.subplots()
@@ -825,13 +911,13 @@ def _plot_latency(dataset, query, framework, ax=None):
         hue="query_type",
         ax=ax,
         legend=True,
-        err_kws={"linewidth": 1},
+        err_kws={"linewidth": 1.5},
     )
     ax.set_yscale("log")
     return ax
 
 
-def plot_latency_query(query,save_fig=False):
+def plot_latency_query(query, save_fig=False):
     setup_matplotlib()
     figsize = np.array(set_size(fullwidth, subplots=(1.5, 3)))
     fig = plt.figure(figsize=figsize)
@@ -852,9 +938,7 @@ def plot_latency_query(query,save_fig=False):
         # ax.axhline(y=5*60)
 
     # hpc_hd_fig.suptitle(f"(a) {DATASET_MAP['hpc-hd']} Dataset", y=0, va="bottom")
-    hpc_hd_fig.supylabel(
-        f"(a) {DATASET_MAP['hpc-hd']}", x=0.985,y=0.5, ha= "right"
-    )
+    hpc_hd_fig.supylabel(f"(a) {DATASET_MAP['hpc-hd']}", x=0.985, y=0.5, ha="right")
 
     dataset = "hpc-hd-newspapers"
     axes = hpc_hd_newspapers_fig.subplots(1, 3, sharex=True, sharey=True)
@@ -873,7 +957,11 @@ def plot_latency_query(query,save_fig=False):
     #     f"(b) {DATASET_MAP['hpc-hd-newspapers']} Dataset", y=0, va="bottom"
     # )
     hpc_hd_newspapers_fig.supylabel(
-        f"(b) {DATASET_MAP['hpc-hd-newspapers']}", x=0.985,y=0.55, ha= "right",va="center"
+        f"(b) {DATASET_MAP['hpc-hd-newspapers']}",
+        x=0.985,
+        y=0.55,
+        ha="right",
+        va="center",
     )
 
     # hpc_hd_fig.set_facecolor('coral')
@@ -882,22 +970,35 @@ def plot_latency_query(query,save_fig=False):
 
     leg_ax = leg_fig.subplots()
     leg_ax.legend(
-        *legend, ncol=3, loc="lower center", borderpad=0, borderaxespad=0, frameon=False, mode="expand"
+        *legend,
+        ncol=3,
+        loc="lower center",
+        borderpad=0,
+        borderaxespad=0,
+        frameon=False,
+        mode="expand",
     )
     leg_ax.axis("off")
 
-    hpc_hd_fig.subplots_adjust(bottom=0.03, left=0.085, top=0.85, wspace=0.1,right=0.95)
-    hpc_hd_newspapers_fig.subplots_adjust(bottom=0.12, left=0.085, top=0.92, wspace=0.1,right=0.95)
+    hpc_hd_fig.subplots_adjust(
+        bottom=0.03, left=0.085, top=0.85, wspace=0.1, right=0.95
+    )
+    hpc_hd_newspapers_fig.subplots_adjust(
+        bottom=0.12, left=0.085, top=0.92, wspace=0.1, right=0.95
+    )
     leg_fig.subplots_adjust(top=1, bottom=0.12, left=0.1)
     fig.supylabel("Query Latency")
-    fig.supxlabel("Bucket Number", va="top", y=-0.03)
+    fig.supxlabel("Workload Bucket", va="top", y=-0.03)
     if save_fig:
-        fig.savefig(plots_dir/f"{query}-latency.pdf",bbox_inches="tight",pad_inches=0)
+        fig.savefig(
+            plots_dir / f"{query}-latency.pdf", bbox_inches="tight", pad_inches=0
+        )
+
 
 # %%
 setup_matplotlib()
-dataset = "hpc-hd-newspapers"
-query = "quote"
+dataset = "hpc-hd"
+query = "reception"
 save_fig = False
 hot_cache = False
 plots_dir = Path("/Users/mahadeva/Research/textreuse-pipeline-paper/figures")
@@ -905,9 +1006,9 @@ running_times = get_results_df(dataset, query, hot_cache=hot_cache)
 
 for schema in running_times.schema.unique():
     _df = running_times.query(f"schema=='{schema}'")
-    __df = _df.pivot(index="query_dists_id",columns="query_type",values="duration")
-    speedup = (__df['standard']/__df['denorm'])
-    print(dataset,schema)
+    __df = _df.pivot(index="query_dists_id", columns="query_type", values="duration")
+    speedup = __df["standard"] / __df["denorm"]
+    print(dataset, schema)
     print(speedup)
     print(speedup.mean())
 # %%
@@ -925,12 +1026,10 @@ plot_top_quotes_workload(save_fig=save_fig)
 # %%
 plot_reception_workload(save_fig=save_fig)
 # %%
-plot_latency_query("reception",save_fig=save_fig)
-#%%
-plot_latency_query("quote",save_fig=save_fig)
-#%%
-
-
+plot_latency_query("reception", save_fig=save_fig)
+# %%
+plot_latency_query("quote", save_fig=save_fig)
+# %%
 
 
 # %%
@@ -1028,7 +1127,7 @@ plt.ylabel("Query Processing Cost (in BU)")
 plt.title(f"{dataset.title()} dataset and {query.title()} use-case")
 # %%
 tmp = _df.query("query_dists_id== and query_type=='denorm'")
-pdf = tmp.pivot(index="doc_id", columns="num_runs", values=["duration","ground_truth"])
+pdf = tmp.pivot(index="doc_id", columns="num_runs", values=["duration", "ground_truth"])
 # print(f"Cold cache mean: {pdf[1].mean()} hot-cache mean: {pdf[2].mean()}")
 # print(
 #     f"Cold mean fixex: {pdf[~pdf[2].isna()][1].mean()} hot-cache mean: {pdf[2].mean()}"
