@@ -39,13 +39,8 @@ from spark_utils_alternate import (
 
 # %%
 
-# paper 
-# columnwidth = 241.1474
-# fullwidth = 506.295
-
-# thesis 
-columnwidth = 355.65944
-fullwidth = 355.65944
+columnwidth = 241.1474
+fullwidth = 455.24408
 
 QUERY_MAP = {"reception": "Reception", "quote": "Top Quotes"}
 
@@ -507,8 +502,8 @@ def get_results_df(dataset, query, hot_cache=False):
     return running_times
 
 
-def get_trade_off_dataframe(dataset, query):
-    running_times = get_results_df(dataset, query)
+def get_trade_off_dataframe(dataset, query,hot_cache=False):
+    running_times = get_results_df(dataset, query,hot_cache=hot_cache)
     # if dataset == "hpc-hd-newspapers" and query == "quote":
     #     _df = running_times.query("query_dists_id<7")
     # elif dataset == "hpc-hd" and query == "quote":
@@ -572,15 +567,17 @@ def plot_cost_trade_off(df, ax=None):
     sns.pointplot(
         data=df,
         ax=ax,
-        x="storage_cost",
-        y="processing_cost",
+        x="estimated_storage_cost",
+        y="estimated_processing_cost",
         hue=hue,
         palette=palette,
         hue_order=hue.unique(),
         native_scale=True,
         log_scale=[True, True],
         legend=True,
-        markersize=3,
+        markeredgecolor="black",
+        markeredgewidth=0.5,
+        markersize=5,
         markers=["o", "s", "D", "o", "s", "D", "o", "s", "D"],
         err_kws={"linewidth": 1.5},
     )
@@ -609,14 +606,51 @@ def plot_legend(legend_handlers):
         fig.savefig(plots_dir / "legend.pdf", bbox_inches=bbox)
 
 
+def is_pareto_efficient_dumb(costs):
+    """
+    Find the pareto-efficient points
+    :param costs: An (n_points, n_costs) array
+    :return: A (n_points, ) boolean array, indicating whether each point is Pareto efficient
+    """
+    is_efficient = np.ones(costs.shape[0], dtype = bool)
+    for i, c in enumerate(costs):
+        is_efficient[i] = np.all(np.any(costs[:i]>c, axis=1)) and np.all(np.any(costs[i+1:]>c, axis=1))
+    return is_efficient
+
+def plot_pareto_front(data,x,y,rescale=0.1,**kwargs):
+    if "ax" in kwargs:
+        ax = kwargs["ax"]
+    else:
+        ax = plt.gca()
+    _data = data.copy()
+    _data.loc[_data[x]==0,x]=np.NaN
+    _data.loc[_data[y]==0,y]=np.NaN
+    _data = _data.dropna()  
+    pareto_front_mask = is_pareto_efficient_dumb(_data.values)
+    _data = _data[pareto_front_mask]
+    _data.loc[:,y] -= (_data.loc[:,y]*rescale) # move points 10% below and to the right 
+    _data.loc[:,x] -= (_data.loc[:,x]*rescale) # move points 10% below and to the right 
+    sns.lineplot(
+        ax=ax,
+        data=_data,
+        x=x,
+        y=y,
+        linestyle="--",
+        label="Pareto Front",
+        color="black",
+        legend=False,
+        zorder=0,
+        alpha=0.5
+    )
+
 def plot_cost_trade_off_grid(save_fig=False):
     setup_matplotlib()
-    figsize = np.array(set_size(width=fullwidth, subplots=(1.8, 4)))
+    figsize = np.array(set_size(width=fullwidth, subplots=(2.5,3)))
     # fig,(leg_ax,axes) = plt.subplots(2,3,,figsize=figsize)
     fig = plt.figure(figsize=figsize)
-    (leg_fig, plt_fig) = fig.subfigures(2, 1, height_ratios=[0.2, 1], hspace=0)
-    leg_ax1, leg_ax2 = leg_fig.subplots(1, 2)
-    reception_fig, quote_fig = plt_fig.subfigures(1, 2, wspace=0.0)
+    (plt_fig, leg_fig) = fig.subfigures(1, 2, width_ratios=[1,0.2], wspace=0)
+    leg_ax1,leg_pareto, leg_ax2 = leg_fig.subplots(3, 1, height_ratios=[1,0.3,1])
+    reception_fig, quote_fig = plt_fig.subfigures(2, 1, hspace=0.0)
     axes = []
     axes.extend(reception_fig.subplots(1, 2))
     axes.extend(quote_fig.subplots(1, 2))
@@ -626,30 +660,34 @@ def plot_cost_trade_off_grid(save_fig=False):
         ("quote", "hpc-hd"),
         ("quote", "hpc-hd-newspapers"),
     ]
+    analysis_module_map = {"reception":reception_analysis,"quote":quote_analysis}
     for ax, (query, dataset) in zip(axes, dataset_query):
-        df = get_trade_off_dataframe(dataset, query)
+        query_dists = analysis_module_map[query].get_query_dists(analysis_module_map[query].get_statistics(dataset))        
+        df = get_trade_off_dataframe(dataset, query,hot_cache=True)
+        df["query"] = query
+        df = df.merge(query_dists,left_on="query_dists_id",right_index=True) 
+        df = df.groupby(["dataset","query","schema","query_type","query_dists_id"]).mean(numeric_only=True)
+        df["estimated_duration"] = df["duration"]*df["proportion"]
+        df["estimated_storage_cost"] = df["storage_cost"]*df["proportion"]
+        df["estimated_processing_cost"] = df["processing_cost"]*df["proportion"]
+        df["estimated_total_cost"] = df["total_cost"]*df["proportion"] 
+        df = df.groupby(level=[0,1,2,3])[["estimated_processing_cost","estimated_storage_cost"]].sum().reset_index()
         ax, legend = plot_cost_trade_off(df, ax=ax)
+        plot_pareto_front(
+            df,
+            x="estimated_storage_cost",
+            y="estimated_processing_cost",
+            ax=ax,
+            rescale=0,
+        )
         ax.set_xlabel("")
         ax.set_ylabel("")
         ax.set_title(f"{df.dataset.iloc[0]}")
 
-    reception_fig.suptitle(QUERY_MAP["reception"],fontsize="large",x=0.55)
-    quote_fig.suptitle(QUERY_MAP["quote"],fontsize="large")
-    fig.supylabel("Query Execution Cost (in BU)")
+    reception_fig.suptitle(f'{QUERY_MAP["reception"]} Task',fontsize="large",x=0.55)
+    quote_fig.suptitle(f"{QUERY_MAP['quote']} Task",fontsize="large",x=0.55,y=1,va="bottom")
+    fig.supylabel("Expected Query Execution Cost (in BU)")
     fig.supxlabel("Storage Costs (in BU/hr)")
-    # reception_fig.set_facecolor('coral')
-    # quote_fig.set_facecolor('blue')
-    # leg_fig.set_facecolor('green')
-    # leg_ax.axis("off")
-    # leg_ax.legend(
-    #     *legend,
-    #     ncol=3,
-    #     loc="lower center",
-    #     borderaxespad=0,
-    #     frameon=False,
-    #     mode="expand",
-    #     markerscale=1.5,
-    # )
 
     circle = mlines.Line2D(
         [],
@@ -685,43 +723,85 @@ def plot_cost_trade_off_grid(save_fig=False):
     leg_ax1.legend(
         handles=[circle, square, diamond],
         title="Framework",
-        ncol=3,
+        ncol=1,
         loc="lower center",
         borderaxespad=0,
         frameon=False,
         # mode="expand",
-        markerscale=0.5,
+        markerscale=0.75,
     )
 
     blue = mlines.Line2D(
-        [], [], color="tab:blue", label=QUERY_TYPE_MAP["denorm"], linewidth=2
+        [],
+        [],
+        linestyle="none",
+        label=QUERY_TYPE_MAP["denorm"],
+        markeredgecolor="none",
+        markerfacecolor="tab:blue",
+        marker="o",
+        markersize=10
     )
+
     orange = mlines.Line2D(
-        [], [], color="tab:orange", label=QUERY_TYPE_MAP["intermediate"], linewidth=2
+        [],
+        [],
+        linestyle="none",
+        label=QUERY_TYPE_MAP["intermediate"],
+        markersize=10,
+        markeredgecolor="none",
+        markerfacecolor="tab:orange",
+        marker="o"
     )
+
     green = mlines.Line2D(
-        [], [], color="tab:green", label=QUERY_TYPE_MAP["standard"], linewidth=2
+        [],
+        [],
+        linestyle="none",
+        label=QUERY_TYPE_MAP["standard"],
+        markeredgecolor="none",
+        markerfacecolor="tab:green",
+        marker="o",
+        markersize=10,
     )
+
     leg_ax2.axis("off")
     leg_ax2.legend(
         handles=[blue, orange, green],
         title="Normalization Level",
-        ncol=3,
+        ncol=1,
         loc="lower center",
         borderaxespad=0,
         frameon=False,
         # mode="expand",
-        markerscale=1.5,
+        markerscale=0.7,
     )
 
-    leg_fig.subplots_adjust(right=0.99, top=1, left=0.1, bottom=0)
-    reception_fig.subplots_adjust(
-        right=0.99, wspace=0.25, top=0.825, bottom=0.21, left=0.17
+    leg_pareto.axis('off')
+
+    pareto_line = mlines.Line2D(
+        [],
+        [],
+        linestyle="--",
+        alpha=0.5,
+        color="black",  
+        label="Pareto Front"
     )
-    quote_fig.subplots_adjust(wspace=0.25, top=0.825, bottom=0.21, left=0.1, right=0.92)
+
+    leg_pareto.legend(
+        handles=[pareto_line],
+        borderaxespad=0,
+        frameon=False,
+
+    )
+    leg_fig.subplots_adjust(right=0.99, top=0.8, left=0.1, bottom=0.3,wspace=0.5)
+    reception_fig.subplots_adjust(
+        right=0.99, wspace=0.25, top=0.8, bottom=0.2, left=0.13
+    )
+    quote_fig.subplots_adjust(wspace=0.25, top=0.95, bottom=0.25, left=0.13, right=0.99)
     if save_fig:
         fig.savefig(plots_dir / "trade-off-plot.pdf", bbox_inches="tight", pad_inches=0)
 
+# %%
 
 def plot_latency_row(dataset, query, save_fig=False):
     running_times = get_results_df(dataset, query)
@@ -1001,16 +1081,9 @@ dataset = "hpc-hd"
 query = "reception"
 save_fig = False
 hot_cache = False
-plots_dir = Path("/Users/mahadeva/Research/textreuse-pipeline-paper/figures")
+plots_dir = Path("/Users/mahadeva/Research/textreuse-pipeline-paper/IJDSA")
 running_times = get_results_df(dataset, query, hot_cache=hot_cache)
 
-for schema in running_times.schema.unique():
-    _df = running_times.query(f"schema=='{schema}'")
-    __df = _df.pivot(index="query_dists_id", columns="query_type", values="duration")
-    speedup = __df["standard"] / __df["denorm"]
-    print(dataset, schema)
-    print(speedup)
-    print(speedup.mean())
 # %%
 df = get_trade_off_dataframe(dataset, query)
 # %%
@@ -1030,8 +1103,47 @@ plot_latency_query("reception", save_fig=save_fig)
 # %%
 plot_latency_query("quote", save_fig=save_fig)
 # %%
+# Very slow for many datapoints.  Fastest for many costs, most readable
 
 
+_dfs = []
+for dataset in ["hpc-hd","hpc-hd-newspapers"]:
+    for query,module in zip(["reception","quote"],[reception_analysis,quote_analysis]):
+        query_dists = module.get_query_dists(module.get_statistics(dataset))        
+        _df = get_trade_off_dataframe(dataset, query,hot_cache=True)
+        _df["query"] = query
+        _df = _df.merge(query_dists,left_on="query_dists_id",right_index=True)
+        _dfs.append(_df)
+
+df = pd.concat(_dfs)
+# Average the metrics for each workload bucket 'query_dists_id'
+_df = df.groupby(["dataset","query","schema","query_type","query_dists_id"]).mean(numeric_only=True)
+_df["proportional_duration"] = _df["duration"]*_df["proportion"]
+_df["proportional_storage_cost"] = _df["storage_cost"]*_df["proportion"]
+_df["proportional_processing_cost"] = _df["processing_cost"]*_df["proportion"]
+_df["proportional_total_cost"] = _df["total_cost"]*_df["proportion"]
+_df.groupby(level=[0,1,2,3])[["proportional_storage_cost","proportional_processing_cost","proportional_total_cost","proportional_duration"]].sum()
+# %%
+trade_off_stats = _df.groupby(level=[0,1,2,3])[["proportional_processing_cost","proportional_storage_cost"]].sum()
+g = sns.relplot(trade_off_stats.reset_index(),x="proportional_storage_cost",y="proportional_processing_cost",row="dataset",col="query",hue="schema",legend=True,style="query_type",)
+g.set(xscale="log")
+g.set(yscale="log")
+legend_data = {k:v for k,v in g._legend_data.items()}
+print(f"{legend_data=}")
+g.map_dataframe(plot_pareto_front,x="proportional_storage_cost",y="proportional_processing_cost")
+legend_data = {k:v for k,v in g._legend_data.items() if k not in legend_data}
+print(f"{legend_data=}")
+g.add_legend(legend_data=legend_data)
+# g.set(xlabel="Proportional Total Cost (in BUs)")
+# g.set(ylabel="Proportional Query Latency (in seconds)")
+# %%
+trade_off_stats = _df.groupby(level=[0,1,2,3])[["proportional_total_cost","proportional_duration"]].sum()
+g = sns.relplot(trade_off_stats.reset_index(),x="proportional_total_cost",y="proportional_duration",row="dataset",col="query",hue="schema",
+style="query_type",legend=True)
+g.set(xscale="log")
+g.set(yscale="log")
+# %%
+df.groupby(["dataset","query","schema","query_type"])[["storage_cost","processing_cost","total_cost","duration"]].mean()
 # %%
 hpc_hd_stats = quote_analysis.get_statistics("hpc-hd", threshold=0)
 hpc_hd_samples = quote_analysis.get_samples("hpc-hd")
