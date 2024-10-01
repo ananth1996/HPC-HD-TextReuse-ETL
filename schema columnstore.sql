@@ -330,3 +330,8 @@ CREATE TABLE IF NOT EXISTS `hpc-hd-newspapers-columnstore`.`textreuse_sources` (
     `trs_id` int(11) unsigned NOT NULL,
     `text` mediumtext NOT NULL
 )ENGINE=Columnstore DEFAULT CHARSET=utf8mb3;
+
+CREATE TABLE IF NOT EXISTS `hpc-hd-newspapers-columnstore`.`manifestation_publication_date`(
+        `manifestation_id_i` int(11) unsigned NOT NULL,
+        `publication_date` date DEFAULT NULL
+    )ENGINE=Columnstore DEFAULT CHARSET=utf8mb3;

@@ -150,3 +150,12 @@ FROM `hpc-hd-newspapers`.textreuse_sources
 ORDER BY trs_id;
 
 
+
+
+INSERT INTO `hpc-hd-newspapers-columnstore`.textreuse_manifestation_mapping
+SELECT * FROM `hpc-hd-newspapers`.textreuse_manifestation_mapping
+ORDER BY trs_id;
+
+INSERT INTO `hpc-hd-newspapers-columnstore`.manifestation_publication_date
+SELECT * FROM `hpc-hd-newspapers`.manifestation_publication_date
+ORDER BY manifestation_id_i;

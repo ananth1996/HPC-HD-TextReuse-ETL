@@ -132,3 +132,19 @@ ADD INDEX IF NOT EXISTS `src_trs_id` (`src_trs_id`),
 ADD INDEX IF NOT EXISTS `reception` (`coverage_src_in_dst`),
 ADD INDEX IF NOT EXISTS `dst_trs_id` (`dst_trs_id`);
 ADD INDEX IF NOT EXISTS `inception` (`coverage_dst_in_src`),
+
+
+
+
+CREATE TABLE IF NOT EXISTS `textreuse_manifestation_mapping`(
+	`trs_id` int(11) unsigned NOT NULL,
+    `manifestation_id_i` int(11) unsigned NOT NULL
+) ENGINE=Aria PAGE_CHECKSUM=0 TRANSACTIONAL=0;
+
+INSERT INTO textreuse_manifestation_mapping
+SELECT trs_id,manifestation_id_i FROM textreuse_ids ti 
+INNER JOIN manifestation_ids mi USING(manifestation_id)
+
+ALTER TABLE `textreuse_manifestation_mapping`
+ADD INDEX IF NOT EXISTS `trs_id` (`trs_id`),
+ADD INDEX IF NOT EXISTS `manifestation_id_i` (`manifestation_id_i`);
