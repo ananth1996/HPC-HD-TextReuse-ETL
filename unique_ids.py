@@ -5,7 +5,7 @@ from pyspark.sql.functions import *
 from spark_utils import *
 project_root = Path.cwd().resolve()
 #%%
-textreuses_raw = get_s3(fname="txtreuse",bucket=raw_bucket,table_name="textreuses_raw")
+textreuses_raw = get_s3(fname="tr_data_out_all",bucket=raw_bucket,table_name="textreuses_raw")
 #%%
 # get textreuse ids
 textreuse_ids = materialise_row_numbers(

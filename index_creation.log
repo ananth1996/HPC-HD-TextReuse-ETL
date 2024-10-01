@@ -1,0 +1,68 @@
+MariaDB [hpc-hd-newspapers]> ALTER TABLE `defrag_pieces`
+    -> ADD PRIMARY KEY (`piece_id`),
+    -> ADD INDEX IF NOT EXISTS `trs_composite` (`trs_id`,`piece_id`);
+Query OK, 1098916260 rows affected (53 min 31.276 sec)
+Records: 1098916260  Duplicates: 0  Warnings: 0
+
+ALTER TABLE `defrag_textreuses`
+    -> ADD PRIMARY KEY (`textreuse_id`),
+    -> ADD INDEX IF NOT EXISTS `composite1` (`piece1_id`,`piece2_id`),
+    -> ADD INDEX IF NOT EXISTS `composite2` (`piece2_id`,`piece1_id`);
+Stage: 2 of 2 'Repair by sortinStage: 2 of 2 'Repair by soQuery OK, 
+5608256233 rows affected (7 hours 57 min 26.355 sec)
+Records: 5608256233  Duplicates: 0  Warnings: 0
+
+ALTER TABLE `reception_edges_denorm`
+    -> ADD INDEX IF NOT EXISTS `src_trs_id` (`src_trs_id`),
+    -> ADD INDEX IF NOT EXISTS `dst_trs_id` (`dst_trs_id`);
+Query OK, 4739160201 rows affected (4 hours 19 min 10.855 sec)
+Records: 4739160201  Duplicates: 0  Warnings: 0
+
+ALTER TABLE `clustered_defrag_pieces`
+    -> ADD PRIMARY KEY (`piece_id`),
+    -> ADD INDEX IF NOT EXISTS `cluster_covering` (`cluster_id`,`piece_id`);
+Query OK, 1098916260 rows affected (1 hour 9 min 34.625 sec)
+Records: 1098916260  Duplicates: 0  Warnings: 0
+
+ALTER TABLE `earliest_textreuse_by_cluster`
+    -> ADD INDEX IF NOT EXISTS `cluster_covering` (`cluster_id`,`trs_id`),
+    -> ADD INDEX IF NOT EXISTS `trs_covering` (`trs_id`,`cluster_id`);
+Query OK, 112103227 rows affected (4 min 40.184 sec)
+Records: 112103227  Duplicates: 0  Warnings: 0
+
+ALTER TABLE `earliest_work_and_pieces_by_cluster`
+    -> ADD INDEX IF NOT EXISTS `cluster_composite1` (`cluster_id`,`piece_id`),
+    -> ADD INDEX IF NOT EXISTS `cluster_composite2` (`cluster_id`,`work_id_i`),
+    -> ADD INDEX IF NOT EXISTS `cluster_covering` (`piece_id`,`cluster_id`,`work_id_i`);
+Query OK, 110935905 rows affected (6 min 11.817 sec)
+Records: 110935905  Duplicates: 0  Warnings: 0
+
+ALTER TABLE `coverages`
+    -> ADD INDEX IF NOT EXISTS `trs1_composite` (`trs1_id`,`trs2_id`),
+    -> ADD INDEX IF NOT EXISTS `trs2_composite` (`trs2_id`,`trs1_id`);
+Query OK, 1557235356 rows affected (2 hours 1 min 9.589 sec)
+Records: 1557235356  Duplicates: 0  Warnings: 0
+
+non_source_pieces
+47 Min 5 s
+
+ALTER TABLE `source_piece_statistics_denorm`
+    -> ADD INDEX IF NOT EXISTS `piece_id` (`piece_id`),
+    -> ADD INDEX IF NOT EXISTS `edition_id_i` (`edition_id_i`),
+    -> ADD INDEX IF NOT EXISTS `trs_id` (`trs_id`),
+    -> ADD INDEX IF NOT EXISTS `piece_length` (`piece_length`);
+Query OK, 90144871 rows affected (7 min 9.914 sec)
+Records: 90144871  Duplicates: 0  Warnings: 0
+
+
+ALTER TABLE `source_piece_statistics`
+    -> ADD PRIMARY KEY (`piece_id`),
+    -> ADD INDEX IF NOT EXISTS `piece_length` (`piece_length`);
+Query OK, 89317769 rows affected (5 min 47.772 sec)
+Records: 89317769  Duplicates: 0  Warnings: 0
+
+ALTER TABLE `reception_edges`
+    -> ADD INDEX IF NOT EXISTS `src` (`src_piece_id`),
+    -> ADD INDEX IF NOT EXISTS `dst` (`dst_piece_id`);
+Query OK, 4739160201 rows affected (4 hours 55 min 36.279 sec)
+Records: 4739160201  Duplicates: 0  Warnings: 0

@@ -18,8 +18,20 @@ else:
 textreuses = get_s3("textreuses",processed_bucket)
 textreuse_ids = get_s3("textreuse_ids",processed_bucket)
 ecco_core = get_s3("ecco_core",raw_bucket)
+textreuse_sources = get_s3("textreuse_sources",raw_bucket)
 #%%
-coverages = materialise_s3(
+textreuse_source_lengths = materialise_s3_if_not_exists(
+    fname = "textreuse_source_lengths",
+    df =spark.sql("""
+		SELECT /*+ BROADCAST(ti) */
+		trs_id, LENGTH(text) as text_length
+		FROM textreuse_sources ts
+		INNER JOIN textreuse_ids ti ON ti.text_name = ts.doc_id
+		"""),
+    bucket=processed_bucket
+)
+#%%
+coverages = materialise_s3_if_not_exists(
     fname="coverages", 
     df= spark.sql("""
 WITH groups AS 
@@ -134,14 +146,13 @@ reuses AS
 		t1.trs2_id = t2.trs2_id 
 )
 SELECT 
-	r.trs1_id, r.t1_reuses, r.reuse_t1_t2, ec.ecco_nr_characters as t1_length, (r.reuse_t1_t2/ec.ecco_nr_characters)*100 as coverage_t1_t2,
-	r.trs2_id, r.t2_reuses, r.reuse_t2_t1, ec2.ecco_nr_characters as t2_length, (r.reuse_t2_t1/ec2.ecco_nr_characters)*100 as coverage_t2_t1
+    /*+ BROADCAST(l1) BROADCAST(l2) */
+	r.trs1_id, r.t1_reuses, r.reuse_t1_t2, l1.text_length as t1_length, (r.reuse_t1_t2/l1.text_length)*100 as coverage_t1_t2,
+	r.trs2_id, r.t2_reuses, r.reuse_t2_t1, l2.text_length as t2_length, (r.reuse_t2_t1/l2.text_length)*100 as coverage_t2_t1
 FROM 
 	reuses r
-	LEFT JOIN textreuse_ids i ON i.trs_id = r.trs1_id
-	LEFT JOIN ecco_core ec ON i.manifestation_id = ec.ecco_id
-	LEFT JOIN textreuse_ids i2 ON i2.trs_id = r.trs2_id 
-	LEFT JOIN ecco_core ec2 ON i2.manifestation_id = ec2.ecco_id
+	LEFT JOIN textreuse_source_lengths l1 ON l1.trs_id = r.trs1_id
+	LEFT JOIN textreuse_source_lengths l2 ON l2.trs_id = r.trs2_id
 """),
 bucket=processed_bucket
 )

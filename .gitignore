@@ -1,3 +1,4 @@
+core.*
 s3credentials.toml
 .vscode/launch.json
 *.zip
@@ -10,6 +11,10 @@ mandeville_bipartite_new/
 database.toml
 data/
 metastore_db/
-.ammonite/
 .vscode/
 .metals/
+.ammonite
+tmp*
+dagster_home
+.env
+.DS_Store

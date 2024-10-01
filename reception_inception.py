@@ -61,3 +61,7 @@ reception_edges_denorm = materialise_s3_if_not_exists(
     bucket=denorm_bucket
 )
 #%%
+df = spark.sql("SELECT /*+ BROADCAST (ti) */ ti.manifestation_id, COUNT(*) as num_reception_edges FROM reception_edges_denorm INNER JOIN textreuse_ids ti ON src_trs_id = ti.trs_id  GROUP BY ti.manifestation_id")
+pdf = df.toPandas()
+pdf = pdf.sort_values(by=["num_reception_edges","manifestation_id"],ascending=[False,True])
+pdf.to_csv("./data/num_reception_edges_newspapers.csv")

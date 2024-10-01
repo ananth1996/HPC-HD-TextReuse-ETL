@@ -1,9 +1,15 @@
 // load spark jars
 interp.load.cp(os.list(os.root/'usr/'local/'spark/'jars))
+import coursierapi.MavenRepository
+
+interp.repositories.update(
+  interp.repositories() ::: List(MavenRepository.of("https://repos.spark-packages.org/"))
+)
 
 @
 
 import $ivy.`sh.almond::almond-spark:0.13.2`
+import $ivy.`graphframes:graphframes:0.8.2-spark3.2-s_2.12`
 import org.apache.spark.sql._
 import scala.collection.JavaConverters._
 
@@ -13,6 +19,7 @@ def getSpark(): SparkSession = {
     val properties = new java.util.Properties()
     properties.load(scala.io.Source.fromFile("/usr/local/spark/conf/spark-defaults.conf").bufferedReader)
     sparkConf.setAll(properties.asScala)
+    sparkConf.set("spark.sql.warehouse.dir","/home/jovyan/work/spark-warehouse")
     val spark = { 
         new NotebookSparkSessionBuilder() {
             override def config(key: String, value: String) = {
@@ -26,6 +33,7 @@ def getSpark(): SparkSession = {
         .getOrCreate() 
     }
     spark.sparkContext.setLogLevel("WARN")
+    spark.sparkContext.setCheckpointDir("/home/jovyan/work/spark-checkpoint")
     spark
 }
 
@@ -78,7 +86,7 @@ def get_partitioned(table: String, column: String, numPartitions: Int = 200): Da
         .option("upperBound", ub)
 }
 
-val a3s_path = "s3a://textreuse-processed-data/"
+val a3s_path = "s3a://textreuse-new-processed-data/"
 
 def noop(name: String, df: DataFrame) = df
 
