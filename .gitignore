@@ -16,3 +16,5 @@ metastore_db/
 .ammonite
 tmp*
 dagster_home
+.env
+.DS_Store
