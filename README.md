@@ -85,12 +85,13 @@ run_queue:
 
 storage:
   mysql:
-    mysql_db:
-      username: <dagster database username>
-      password: <dagster database password>
-      hostname: <database hostname>
-      db_name: "dagster"
-      port: 3306
+    mysql_url: "mysql+mysqlconnector://{username}:{urlquote(password)}@{hostname}:{port}/{db_name}?charset=utf8mb4&collation=utf8mb4_general_ci"
+#     mysql_db:
+#       username: <dagster database username>
+#       password: <dagster database password>
+#       hostname: <database hostname>
+#       db_name: "dagster"
+#       port: 3306
 ```
 
 
