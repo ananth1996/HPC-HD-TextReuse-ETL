@@ -1,5 +1,5 @@
 # %%
-from dagster import asset,  AssetKey, SourceAsset
+from dagster import asset,  AssetKey, AssetSpec
 import json
 import boto3
 import zipfile
@@ -55,7 +55,7 @@ def process_partition(iterator, fname: str, cred: dict):
     session = boto3.session.Session()
     s3 = session.client(
         service_name='s3',
-        **cred["default"]
+        **cred
     )
     transport_params = dict(client=s3)
     # open the S3 stream
@@ -68,7 +68,7 @@ def process_partition(iterator, fname: str, cred: dict):
                     yield json_object
 
 
-zip_file = SourceAsset(key=AssetKey("raw_texreuses_zip"),
+zip_file = AssetSpec(key=AssetKey("raw_texreuses_zip"),
                        description="The raw zip files with textreuse data",group_name="textreuses")
 
 
@@ -78,16 +78,20 @@ zip_file = SourceAsset(key=AssetKey("raw_texreuses_zip"),
     group_name="textreuses"
 )
 def raw_textreuses() -> None:
-    fname = "tr_data_out_all.zip"
+    # get the name of the raw BLAST reuses zip file
+    fname =os.getenv("BLAST_ZIP_FILE")
     num_partitions = 200
     # load credentials for Pouta s3 storage
-    with open(project_root/"s3credentials.toml", "r") as fp:
-        cred = toml.load(fp)
+    cred = {
+        "aws_access_key_id": os.getenv("AWS_ACCESS_KEY_ID"),
+        "aws_secret_access_key": os.getenv("AWS_SECRET_KEY"),
+        "endpoint_url": os.getenv("AWS_ENDPOINT_URL"),
+    }
 
     session = boto3.session.Session()
     s3 = session.client(
         service_name='s3',
-        **cred["default"]
+        **cred
     )
     transport_params = dict(client=s3)
     # filename inside the bucket

@@ -1,9 +1,10 @@
 from pathlib import Path
+from dotenv import load_dotenv
 project_root = Path(__file__).parent.parent.resolve()
 import toml
 import os
 import findspark
-os.environ['PYSPARK_PYTHON'] = str(project_root/".venv/bin/python")
+load_dotenv()
 findspark.init()
 from typing import *
 from pyspark.sql import SparkSession
@@ -17,58 +18,29 @@ processed_bucket = os.getenv("PROCESSED_BUCKET")
 raw_bucket = os.getenv("RAW_BUCKET")
 
 def get_spark_session(project_root:Path=project_root,application_name:str="ETL"):
-    os.environ['PYSPARK_PYTHON'] = str(project_root/".venv/bin/python")
     #findspark.add_packages("graphframes:graphframes:0.8.2-spark3.2-s_2.12"
     spark = (SparkSession
             .builder
             .appName(application_name)
             # To account for issue with historical dates 
-            # See https://docs.databricks.com/en/error-messages/inconsistent-behavior-cross-version-error-class.html#write_ancient_datetime
+            #    See https://docs.databricks.com/en/error-messages/inconsistent-behavior-cross-version-error-class.html#write_ancient_datetime
             .config("spark.sql.parquet.datetimeRebaseModeInWrite","CORRECTED")
             # .config("spark.hadoop.fs.s3a.ssl.channel.mode","openssl")
             .config('spark.ui.showConsoleProgress', 'false')
             #.config('spark.graphx.pregel.checkpointInterval','1')
-            .config("spark.driver.memory","10g")
-            .config("spark.sql.warehouse.dir","/Users/mahadeva/spark-warehouse")
             .config("spark.hadoop.mapreduce.fileoutputcommitter.algorithm.version","2")
             .enableHiveSupport()
             .getOrCreate())
     spark.sparkContext.setLogLevel("WARN")
     sc = spark.sparkContext
-    # load credentials for Pouta s3 storage
-    with open(project_root/"s3credentials.toml","r") as fp:
-        cred = toml.load(fp)
     # set up credentials for spark
-    sc._jsc.hadoopConfiguration().set("fs.s3a.access.key", cred["default"]["aws_access_key_id"])
-    sc._jsc.hadoopConfiguration().set("fs.s3a.secret.key", cred["default"]["aws_secret_access_key"])
-    sc._jsc.hadoopConfiguration().set("fs.s3a.endpoint", cred["default"]["endpoint_url"])
-    #checkpoint_dir = project_root/"checkpoints"
-    #checkpoint_dir.mkdir(exist_ok=True,parents=True)
-    #sc.setCheckpointDir(str(checkpoint_dir))
+    sc._jsc.hadoopConfiguration().set("fs.s3a.access.key", os.getenv("AWS_ACCESS_KEY_ID"))
+    sc._jsc.hadoopConfiguration().set("fs.s3a.secret.key", os.getenv("AWS_SECRET_KEY"))
+    sc._jsc.hadoopConfiguration().set("fs.s3a.endpoint", os.getenv("AWS_ENDPOINT_URL"))
     sc.setCheckpointDir(f"s3a://{processed_bucket}/checkpoints")
 
     return spark
 
-# # get the spark sessions
-# spark,sc = start_spark_app(project_root=project_root)
-
-# # the file systems for the buckets
-# processed_fs = sc._jvm.org.apache.hadoop.fs.FileSystem.get(
-#         sc._jvm.java.net.URI.create(f"s3a://{processed_bucket}"), 
-#         sc._jsc.hadoopConfiguration()
-#     )
-# raw_fs = sc._jvm.org.apache.hadoop.fs.FileSystem.get(
-#         sc._jvm.java.net.URI.create(f"s3a://{raw_bucket}"), 
-#         sc._jsc.hadoopConfiguration()
-#     )
-
-# denorm_fs = sc._jvm.org.apache.hadoop.fs.FileSystem.get(
-#         sc._jvm.java.net.URI.create(f"s3a://{denorm_bucket}"), 
-#         sc._jsc.hadoopConfiguration()
-#     )
-
-# # create a mapping for easy access
-# fs_dict = {processed_bucket:processed_fs,raw_bucket:raw_fs,denorm_bucket:denorm_fs}
 
 def get_local(spark:SparkSession,fname: str, cache: bool = False,table_name: Optional[str] = None):
     if table_name is None:

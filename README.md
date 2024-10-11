@@ -8,14 +8,14 @@ The following will be necessary to run the code
 
 ### Access to Allas
 
-The zip files will be stored in a s3 bucket on [Pouta](pouta.csc.fi). Follow the [docs](https://docs.csc.fi/data/Allas/using_allas/s3_client/) to configure allas to obtain the s3 credentials. Then in the root directory of this project create a file `s3credentials.toml` with the following format:
+The zip files will be stored in a s3 bucket on [Pouta](pouta.csc.fi). Follow the [docs](https://docs.csc.fi/data/Allas/using_allas/s3_client/) to configure Allas to obtain the s3 credentials. Then in the `.env` file in the root directory of this project add the following environment variables:
 
-```toml
-[default]
-aws_access_key_id=<access_key>
-aws_secret_access_key=<secret_key>
-endpoint_url=<endpoint_url>
+```bash
+AWS_ACCESS_KEY_ID=<>
+AWS_SECRET_KEY=<>
+AWS_ENDPOINT_URL=<>
 ```
+
 This file will not be version controlled and will be used by `boto3` and `spark` to access the s3 buckets to read and write data.
 
 ### Spark Cluster
@@ -44,7 +44,7 @@ oc rsh <notebook-pod-name> bash
 
 Now from inside the notebook pod this repository should be cloned.
 
-## Python
+## Code and Python Dependencies
 
 Once the repository has been cloned install the dependencies using [poetry](https://python-poetry.org). Create the virual env and ensure it is in the project directory by running the following commands
 
@@ -55,23 +55,33 @@ poetry install
 
 This will install the python library required for the application.
 
+In the `.env` file add the location to the python interpreter pyspark should use with the following variable:
+
+```bash
+PYSPARK_PYTHON=<PROJECT ROOT>/.venv/bin/python
+```
+
 ## MariaDB Database
 
 Create a MariaDB instance following the details in the repository: [https://github.com/HPC-HD/pouta-mariadb-terraform/tree/main](https://github.com/HPC-HD/pouta-mariadb-terraform/tree/main).
 
 
 The MariaDB instance will be used for Dagster and to load the final downstream assets.
-For Dagster create a database called `dagster` and create a username and password for the service.
+For Dagster, create a database, username and password. For example, run the following on the database with admin rights to create a `dagster_test` database with a `dagster_test_user` username :
+
+```sql
+create database dagster_test;
+grant all privileges on dagster_test.* TO 'dagster_test_user'@'%' identified by '<password>';
+flush privileges;
+```
 
 ## Dagster
 
 Create a `.env` file in the main project directory with the following details:
 
-```
-DAGSTER_HOME=/home/jovyan/work/etl_textreuse/dagster_home
-AWS_ACCESS_KEY_ID=<>
-AWS_SECRET_KEY=<>
-AWS_ENDPOINT_URL="a3s.fi"
+```bash
+DAGSTER_HOME=<PROJECT HOME>
+DAGSTER_MYSQL_DB_CONN_STRING="mysql+mysqlconnector://{username}:{urlquote(password)}@{hostname}:{port}/{db_name}?charset=utf8mb4&collation=utf8mb4_general_ci"
 ```
 
 Then create a `dagster_home` in the main project directory and inside the folder create a file called `dagster.yaml`.
@@ -85,13 +95,8 @@ run_queue:
 
 storage:
   mysql:
-    mysql_url: "mysql+mysqlconnector://{username}:{urlquote(password)}@{hostname}:{port}/{db_name}?charset=utf8mb4&collation=utf8mb4_general_ci"
-#     mysql_db:
-#       username: <dagster database username>
-#       password: <dagster database password>
-#       hostname: <database hostname>
-#       db_name: "dagster"
-#       port: 3306
+    mysql_url: 
+      env: DAGSTER_MYSQL_DB_CONN_STRING
 ```
 
 
@@ -101,3 +106,5 @@ Start the Dagster daemon and webserver as follows:
 dagster-webserver -h 0.0.0.0
 dagster-daemon run
 ```
+
+Then follow the Route in Rahti to access the Dagster WebInterface
