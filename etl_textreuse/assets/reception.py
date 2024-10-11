@@ -96,7 +96,7 @@ def reception_edges_denorm() -> None:
         INNER JOIN defrag_pieces dp2 ON re.dst_piece_id = dp2.piece_id
         """
         ),
-        bucket=denorm_bucket,
+        bucket=processed_bucket,
     )
 
 
@@ -166,7 +166,7 @@ def reception_edges_by_manifestation_date_denorm() -> None:
         INNER JOIN defrag_pieces dp2 ON re.dst_piece_id = dp2.piece_id
         """
         ),
-        bucket=denorm_bucket,
+        bucket=processed_bucket,
     )
 
 
@@ -254,5 +254,5 @@ def reception_edges_between_books_denorm() -> None:
         INNER JOIN defrag_pieces dp2 ON re.dst_piece_id = dp2.piece_id
         """
         ),
-        bucket=denorm_bucket,
+        bucket=processed_bucket,
     )

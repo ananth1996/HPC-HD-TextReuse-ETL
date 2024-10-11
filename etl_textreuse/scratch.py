@@ -30,14 +30,15 @@ all_tables = [
     ["earliest_work_and_pieces_by_cluster",processed_bucket,],
     ["reception_edges",processed_bucket,],
     ["source_piece_statistics",processed_bucket,],
-    ["reception_edges_denorm",denorm_bucket,],
-    ["source_piece_statistics_denorm",denorm_bucket,],
+    ["reception_edges_denorm",processed_bucket,],
+    ["source_piece_statistics_denorm",processed_bucket,],
     ["coverages",processed_bucket,],
     ["manifestation_publication_date",processed_bucket],
     ["textreuse_manifestation_mapping",processed_bucket]
 ]
-
+#%%
 spark = get_spark_session(application_name="scratch")
+#%%
 for table,bucket in all_tables:
     get_s3(spark,table,bucket)
 #%%

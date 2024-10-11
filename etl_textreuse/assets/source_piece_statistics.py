@@ -82,5 +82,5 @@ def source_piece_statistics_denorm() -> None:
             INNER JOIN defrag_pieces USING(piece_id)
             INNER JOIN textreuse_edition_mapping USING(trs_id)
         """),
-        bucket=denorm_bucket
+        bucket=processed_bucket
     )

@@ -13,9 +13,8 @@ from etl_textreuse.database_utils import db_options,get_sqlalchemy_engine
 from sqlalchemy import text
 from time import perf_counter as time
 # the buckets
-processed_bucket = "textreuse-dagster-rahti"
-raw_bucket = "textreuse-raw-data"
-denorm_bucket = "textreuse-dagster-rahti"
+processed_bucket = os.getenv("PROCESSED_BUCKET")
+raw_bucket = os.getenv("RAW_BUCKET")
 
 def get_spark_session(project_root:Path=project_root,application_name:str="ETL"):
     os.environ['PYSPARK_PYTHON'] = str(project_root/".venv/bin/python")
