@@ -18,3 +18,4 @@ tmp*
 dagster_home
 .env
 .DS_Store
+.scala-build
