@@ -34,6 +34,9 @@ def getSpark(): SparkSession = {
         .getOrCreate() 
     }
     spark.sparkContext.setLogLevel("WARN")
+    //spark.sparkContext.hadoopConfiguration.set("fs.s3a.access.key",sys.env.getOrElse("AWS_ACCESS_KEY_ID",""))
+    //spark.sparkContext.hadoopConfiguration.set("fs.s3a.secret.key",sys.env.getOrElse("AWS_SECRET_KEY",""))
+    //spark.sparkContext.hadoopConfiguration.set("fs.s3a.endpoint",sys.env.getOrElse("AWS_ENDPOINT_URL","https://a3s.fi"))
     spark.sparkContext.hadoopConfiguration.set("fs.s3a.access.key",sys.env("AWS_ACCESS_KEY_ID"))
     spark.sparkContext.hadoopConfiguration.set("fs.s3a.secret.key",sys.env("AWS_SECRET_KEY"))
     spark.sparkContext.hadoopConfiguration.set("fs.s3a.endpoint",sys.env("AWS_ENDPOINT_URL"))
@@ -48,57 +51,10 @@ val spark = getSpark()
 import spark.implicits._
 val sc = spark.sparkContext
 
-def jdbc_opts(con: DataFrameReader): DataFrameReader = {
-    return con
-        .format("jdbc")
-        .option("driver", "org.mariadb.jdbc.Driver")
-        .option("url", "URL")
-        .option("user", USERNAME)
-        .option("password", "PASSWORD")
-        .option("fetchsize","100000")
-        .option("batchsize","100000")
-}
-
-def jdbc_opts[T](con: DataFrameWriter[T]): DataFrameWriter[T] = {
-    return con
-        .format("jdbc")
-        .option("driver", "org.mariadb.jdbc.Driver")
-        .option("url", "URL")
-        .option("user", USERNAME)
-        .option("password", "PASSWORD")
-        .option("fetchsize","100000") 
-        .option("batchsize","100000")
-}
-
-def get_table(table: String): DataFrameReader = {
-    return jdbc_opts(spark.read)
-        .option("dbtable", table)
-}
-
-def get_limits(table: String, column: String): (Long,Long) = {
-    val row = jdbc_opts(spark.read)
-      .option("query", "SELECT CAST(MIN("+column+") AS INT), CAST(MAX("+column+") AS INT) FROM "+table)
-      .load()
-      .collect()(0)
-    return (row.getLong(0), row.getLong(1))
-}
-
-def get_partitioned(table: String, column: String, numPartitions: Int = 200): DataFrameReader = {
-    val (lb, ub) = get_limits(table, column)
-    return jdbc_opts(spark.read)
-        .option("dbtable", table)
-        .option("partitionColumn", column)
-        .option("numPartitions", numPartitions)
-        .option("lowerBound", lb)
-        .option("upperBound", ub)
-}
-
-
 val a3s_url = "s3a://"
-
-val processed_bucket = "textreuse-dagster-rahti/"
-
-val a3s_path = a3s_url+processed_bucket
+// val processed_bucket = sys.env.getOrElse("PROCESSED_BUCKET","textreuse-dagster-rahti2-test")
+val processed_bucket = sys.env("PROCESSED_BUCKET")
+val a3s_path = a3s_url+processed_bucket+"/"
 
 def noop(name: String, df: DataFrame) = df
 

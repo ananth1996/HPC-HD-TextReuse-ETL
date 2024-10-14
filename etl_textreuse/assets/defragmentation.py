@@ -12,14 +12,27 @@ import subprocess
     group_name="textreuses"
 )
 def piece_id_mappings() -> None:
-    process = subprocess.run(["jupyter", "nbconvert", "--to", "notebook",
-                              "--inplace", "--execute", str(project_root/"etl_textreuse"/"assets"/"piece_id_mappings.ipynb")], capture_output=True)
+    process = subprocess.run(
+        [
+            "jupyter",
+            "nbconvert",
+            "--ExecutePreprocessor.timeout=600",
+            "--to",
+            "notebook",
+            "--inplace",
+            "--execute",
+            "--debug",
+            str(project_root / "etl_textreuse" / "assets" / "piece_id_mappings.ipynb"),
+        ],
+        env=os.environ.copy(),
+        capture_output=True,
+           
+    )
     if process.returncode != 0:
-        raise ChildProcessError(f"Error Running Notebook {process.stdout} {process.stderr}")
+        raise ChildProcessError(f"Error Running Notebook\n{process.stdout.decode('utf-8')}\n{process.stderr.decode('utf-8')}")
     else:
-        print(process.stderr)
-        print(process.stdout)
-
+        print(process.stderr.decode('utf-8'))
+        print(process.stdout.decode('utf-8'))
 
 @asset(
     deps=[orig_pieces, piece_id_mappings],
