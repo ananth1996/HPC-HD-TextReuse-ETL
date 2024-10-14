@@ -10,7 +10,7 @@ from typing import *
 from pyspark.sql import SparkSession
 from pyspark.sql.dataframe import DataFrame
 from pyspark.sql.types import StructField, StructType, LongType
-from etl_textreuse.database_utils import db_options,get_sqlalchemy_engine
+from etl_textreuse.database_utils import get_sqlalchemy_engine
 from sqlalchemy import text
 from time import perf_counter as time
 # the buckets
@@ -26,6 +26,8 @@ def get_spark_session(project_root:Path=project_root,application_name:str="ETL")
             #    See https://docs.databricks.com/en/error-messages/inconsistent-behavior-cross-version-error-class.html#write_ancient_datetime
             .config("spark.sql.parquet.datetimeRebaseModeInWrite","CORRECTED")
             # .config("spark.hadoop.fs.s3a.ssl.channel.mode","openssl")
+            # Send the zipfile of the archive to all workers to ensure they have the same Python environment
+            .config("spark.archives",str(os.getenv("VENV_ZIP_FILE"))) # to send the environment to workers
             .config('spark.ui.showConsoleProgress', 'false')
             #.config('spark.graphx.pregel.checkpointInterval','1')
             .config("spark.hadoop.mapreduce.fileoutputcommitter.algorithm.version","2")
@@ -227,38 +229,23 @@ def materialise_with_int_id(spark:SparkSession,fname:str,df:DataFrame,col_name:s
 
     return _df
 
-# with open(project_root/"database.toml") as fp:
-#     db_options = toml.load(fp)
 
-def get_db_details(database:str):
-    db_details = db_options[database]
-    if "url" not in db_details:
-        db_details["url"]=f"jdbc:mysql://{db_details['host']}:3306/{db_details['database']}?permitMysqlScheme"
-    if "driver" not in db_details:
-        db_details["driver"] = "org.mariadb.jdbc.Driver"
-    if "fetchsize" not in db_details:
-        db_details["fetchsize"]="100000"
-    if "batchsize" not in db_details:
-        db_details["fetchsize"]="100000"
-    return db_details
-
-
-def jdbc_opts(conn,database:str):
-    db_details = get_db_details(database)
+def jdbc_opts(conn):
+    url = f"jdbc:mysql://{os.getenv['DB_HOST']}:3306/{os.getenv['DB_DATABASE']}?permitMysqlScheme"
     return (conn
         .format("jdbc")
-        .option("driver", db_details["driver"])
-        .option("url", db_details["url"])
-        .option("user", db_details["user"])
-        .option("password", db_details["password"])
-        .option("fetchsize",db_details["fetchsize"])
-        .option("batchsize",db_details["batchsize"]))
+        .option("driver", os.getenv("DB_DRIVER"))
+        .option("url", url)
+        .option("user", os.getenv("DB_USERNAME"))
+        .option("password", os.getenv("DB_PASSWORD"))
+        .option("fetchsize",os.getenv("DB_FETCHSIZE"))
+        .option("batchsize",os.getenv("DB_BATCHSIZE")))
 
 
 def load_table(spark:SparkSession,table:str,bucket:str,database:str,schema:str,index:str,table_name:Optional[str]=None) -> Dict[str,float]:
     # load spark table
     df = get_s3(spark,table,bucket)
-    engine = get_sqlalchemy_engine(database)
+    engine = get_sqlalchemy_engine()
     start = time()
     if table_name is None:
         table_name = table
@@ -270,7 +257,7 @@ def load_table(spark:SparkSession,table:str,bucket:str,database:str,schema:str,i
         print("Loading table into database")
         # load the table
         (
-            jdbc_opts(df.write,database=database)
+            jdbc_opts(df.write)
             .option("dbtable", table_name) 
             .option("truncate", "true")
             .mode("overwrite")
