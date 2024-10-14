@@ -18,3 +18,21 @@ RAW_BUCKET=<ALLAS BUCKET NAME>
 PROCESSED_BUCKET=<ALLAS PROCESSED BUCKET NAME>
 ```
 
+
+## Upstream Dependencies
+
+The `RAW_BUCKET` should contain the following upstream metadata sources.
+
+1. `BLAST_ZIP_FILE` : The zip file containing JSONL files with raw BLAST hits. See [assets README](./assets/README.md)
+   - `tr_data_out_all.zip` currently has all the BLAST hits from ECCO, EEBO-TCP and BL-Newspapers
+   - `blast_reuses_test_100.zip` is a subset of the entire data with 100 JSONL files for testing purposes  
+2. ECCO Metadata Assets: All the Parquet from COMHIS: [https://github.com/COMHIS/eccor/tree/main/inst/extdata](https://github.com/COMHIS/eccor/tree/main/inst/extdata) 
+    - The `ecco_core` is the main metadata source
+3. EEBO Metadata Assets: All the Parquet files from COMHIS: [https://github.com/COMHIS/eebor/tree/main/inst/extdata](https://github.com/COMHIS/eebor/tree/main/inst/extdata)
+    - The `eebo_core` is the main metadata source
+4. ESTC Metadata Assets: All the Parquet files from COMHIS: [https://github.com/COMHIS/estcr/tree/main/inst/estc_data](https://github.com/COMHIS/estcr/tree/main/inst/estc_data) 
+    - `estc_core`, `estc_actors` and `estc_actor_links` are the main metadata sources used currently in the pipeline
+5. NL Newspaper Metadata Assets: The `bl_newspapers_meta.csv` from Ville
+   - The CSV is processed into a Parquet. See the [newspaper_core](./assets/upstream_metadata.py#L17) asset for more details.
+
+These assets are define in Dagster as `AssetSpec`s and used to indicate the dependency. However, the file names are hardcoded when they need to be loaded from the `RAW_BUCKET`. The `AssetKey` for these upstream assets is meant to reflect the name of the underlying file. 
