@@ -2,9 +2,19 @@
 
 A streaming approach to extract the contents of the textreuse data. 
 
+- [Extract Transform Load for Text Reuse data](#extract-transform-load-for-text-reuse-data)
+  - [Prerequisites](#prerequisites)
+    - [Access to Allas](#access-to-allas)
+    - [Spark Cluster](#spark-cluster)
+      - [Setting Cluster on Rahti](#setting-cluster-on-rahti)
+      - [Connecting to the Notebook Remotely](#connecting-to-the-notebook-remotely)
+    - [Code and Python Dependencies](#code-and-python-dependencies)
+    - [MariaDB Database](#mariadb-database)
+    - [Dagster](#dagster)
+
 ## Prerequisites 
 
-The following will be necessary to run the code
+The following setup is necessary to run the pipeline.
 
 ### Access to Allas
 
@@ -44,7 +54,7 @@ oc rsh <notebook-pod-name> bash
 
 Now from inside the notebook pod this repository should be cloned.
 
-## Code and Python Dependencies
+### Code and Python Dependencies
 
 Once the repository has been cloned install the dependencies using [poetry](https://python-poetry.org). Create the virual env and ensure it is in the project directory by running the following commands
 
@@ -53,21 +63,45 @@ poetry config virtualenvs.in-project true
 poetry install
 ```
 
-This will install the python library required for the application.
-
-In the `.env` file add the location to the python interpreter pyspark should use with the following variable:
+This will install the python library required for the application. Then to package the python code and virtual environment for the Spark workers, do the following:
 
 ```bash
-PYSPARK_PYTHON=<PROJECT ROOT>/.venv/bin/python
+pip install .
+tar -czvf venv.tar.gz -C .venv .
 ```
 
-## MariaDB Database
+This will create a zip file with all the `etl_textreuse` module code and the python interpreters required by the Spark workers.
+
+**Note: This step will need to be redone everytime the code changes**
+
+In the `.env` file add the location to the zipped venv and the location of the Python interpreter for the Spark workers as follows:
+
+```bash
+PYSPARK_PYTHON="./venv/bin/python"
+VENV_ZIP_FILE="<PROJECT ROOT>/venv.tar.gz#venv"
+```
+
+### MariaDB Database
 
 Create a MariaDB instance following the details in the repository: [https://github.com/HPC-HD/pouta-mariadb-terraform/tree/main](https://github.com/HPC-HD/pouta-mariadb-terraform/tree/main).
 
 
-The MariaDB instance will be used for Dagster and to load the final downstream assets.
-For Dagster, create a database, username and password. For example, run the following on the database with admin rights to create a `dagster_test` database with a `dagster_test_user` username :
+The MariaDB instance will be used for Dagster and to load the final downstream assets. Create a database in the MariaDB instance where the downstream assets from the ETL pipeline will be loaded. Then provide the details to connect to the database via the following environment variables in the `.env` file:
+
+```bash
+
+DB_HOST=<MariaDB HOST IP>
+DB_PORT=<PORT NUMBER>
+DB_DRIVER="org.mariadb.jdbc.Driver"
+DB_USERNAME=<USERNAME>
+DB_PASSWORD=<PASSWORD>
+DB_FETCHSISE="100000"
+DB_BATCHSIZE="100000"
+DB_DATABASE=<DATABASE NAME>
+```
+
+
+Additionally for Dagster, create a database, username and password. For example, run the following on the database with admin rights to create a `dagster_test` database with a `dagster_test_user` username :
 
 ```sql
 create database dagster_test;
@@ -75,13 +109,16 @@ grant all privileges on dagster_test.* TO 'dagster_test_user'@'%' identified by 
 flush privileges;
 ```
 
-## Dagster
+These will be used to create the `DAGSTER_MYSQL_DB_CONN_STRING` env variable.
+
+
+### Dagster
 
 Create a `.env` file in the main project directory with the following details:
 
 ```bash
 DAGSTER_HOME=<PROJECT HOME>
-DAGSTER_MYSQL_DB_CONN_STRING="mysql+mysqlconnector://{username}:{urlquote(password)}@{hostname}:{port}/{db_name}?charset=utf8mb4&collation=utf8mb4_general_ci"
+DAGSTER_MYSQL_DB_CONN_STRING="mysql+mysqlconnector://{username}:{password}@{hostname}:{port}/{db_name}?charset=utf8mb4&collation=utf8mb4_general_ci"
 ```
 
 Then create a `dagster_home` in the main project directory and inside the folder create a file called `dagster.yaml`.
@@ -107,4 +144,4 @@ dagster-webserver -h 0.0.0.0
 dagster-daemon run
 ```
 
-Then follow the Route in Rahti to access the Dagster WebInterface
+Then follow the route in Rahti to access the Dagster web interface.
