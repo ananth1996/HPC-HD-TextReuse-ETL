@@ -34,12 +34,13 @@ The `RAW_BUCKET` should contain the following upstream metadata sources.
     - `estc_core`, `estc_actors` and `estc_actor_links` are the main metadata sources used currently in the pipeline
 5. NL Newspaper Metadata Assets: The `bl_newspapers_meta.csv` from Ville
    - The CSV is processed into a Parquet. See the [newspaper_core](./assets/upstream_metadata.py#L17) asset for more details.
-6. Raw text for each document: The `textreuse_sources.zip` file
+6. `RAW_TEXTS_ZIP_FILE`: The zip file containing all the raw text for each document. 
+    - Default is the `textreuse_sources.zip` file on Allas
     - Created by unzipping all the files from `/scratch/project_2005072/ville/chunks_for_blast` in Puhti and making a single zip with jsonl files called `textreuse_sources.zip`
     - Moved to Allas in the `textreuse-raw-data` bucket
     - The entire file is 34GB and contains 3,071,516 entries.
 
-These assets are define in Dagster as `AssetSpec`s and used to indicate the dependency. However, the file names are hardcoded when they need to be loaded from the `RAW_BUCKET`. The `AssetKey` for these upstream assets is meant to reflect the name of the underlying file. 
+These assets are defined in Dagster as `AssetSpec`s and used to indicate the dependency. However, the file names are hard-coded when they need to be loaded from the `RAW_BUCKET`. The `AssetKey` for these upstream assets is meant to reflect the name of the underlying file. 
 
 ## Dowstream Assets 
 
