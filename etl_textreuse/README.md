@@ -19,7 +19,7 @@ PROCESSED_BUCKET=<ALLAS PROCESSED BUCKET NAME>
 ```
 
 
-## Upstream Dependencies
+## Upstream Assets
 
 The `RAW_BUCKET` should contain the following upstream metadata sources.
 
@@ -36,3 +36,36 @@ The `RAW_BUCKET` should contain the following upstream metadata sources.
    - The CSV is processed into a Parquet. See the [newspaper_core](./assets/upstream_metadata.py#L17) asset for more details.
 
 These assets are define in Dagster as `AssetSpec`s and used to indicate the dependency. However, the file names are hardcoded when they need to be loaded from the `RAW_BUCKET`. The `AssetKey` for these upstream assets is meant to reflect the name of the underlying file. 
+
+## Dowstream Assets 
+
+Using the upstream assets we extract, transform and load to create several downstream assets. These assets are categorized by following `group_names` in Dagster and the files that contain the assets related to each group:
+
+1. `textreuses` : Assets related to the ETL of raw BLAST text reuses.
+2. `metadata`: Assets related to the extraction and parsing of upstream metadata sources.
+3. `downstream_metadata` : Gathering of metadata attributes useful for downstream tasks.
+4. `downstream_textreuses` : Textreuse-based tables useful for downstream tasks.
+5. `denormalized`: Denormalized versions of the `downstream_textreuses` assets meant specifically for loading into MariaDB for indexing.
+6. `database`: Assets corresponding to the loading of Parquet dataframes into MariaDB database tables.
+
+Each group of assets is described more in detail in the [assets/README.md](./assets/README.md) file. 
+
+## Materializing Assets
+
+From the Dagster interface, any asset can be materialized whenever required. Dagster will launch a run which in turn will start a Spark Application and materialize the resulting asset and store any available asset metadata to display.
+
+Several assets can be materialized at once, for example, by selecting a `group_name` and materializing all assets with the same group name.
+
+Similarly, if there is update to the logic of a particular asset, then the [code version](https://docs.dagster.io/concepts/assets/software-defined-assets#asset-code-versions) of that asset can be updated in the repository. For example, after updating the logic for the `manifestation_publication_dates` asset in [`publication_dates`](./assets/publication_date.py), we can update the code version as follows:
+
+```python
+@asset(
+    deps=[ecco_core, eebo_core, newspapers_core,manifestation_ids,estc_core,"edition_ids","edition_mapping"],
+    description="The publication year of each manifestation",
+    group_name="downstream_metadata",
+    code_version="2"
+)
+def manifestation_publication_date() -> Output[None]:
+```
+
+Then in the Dagster UI, the asset will indicate that the code has changes and also allow for updating all affected downstream assets in one easy go. The `code_version` also helps track the changes in logic as development proceeds.
