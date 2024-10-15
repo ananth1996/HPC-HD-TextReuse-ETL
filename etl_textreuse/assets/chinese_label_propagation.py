@@ -74,7 +74,8 @@ def clusters() -> Output[None]:
     # %%
     # TODO have a way to feed in the current iteration count from file
     # TODO allow it to resume from previous iteration
-    iter = 19
+    iter = 0
+    print(f"{iter=}")
     adjacency_list = read_checkpoint("adjacency_list")
     if iter == 0:
         clusters_counts = (adjacency_list

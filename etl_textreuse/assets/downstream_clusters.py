@@ -17,7 +17,7 @@ def clustered_defrag_pieces() -> Output[None]:
         project_root, application_name="clustered degrag pieces")
     #TODO fix the clustering phase
     # for the time being take manaually run 100 iterations of Chinese Label Propagation
-    get_s3(spark, "clusters_counts_100", processed_bucket,
+    get_s3(spark, "clusters_counts_0", processed_bucket,
            table_name="clusters_counts")
     materialise_s3(
         spark,
