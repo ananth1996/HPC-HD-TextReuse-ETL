@@ -1,5 +1,9 @@
 We describe the Dagster Assets from different groups. 
 
+- [`textreuse` Assets](#textreuse-assets)
+  - [Extracting Raw BLAST text reuses from zip file](#extracting-raw-blast-text-reuses-from-zip-file)
+  - [Creating INT ids for each unique document](#creating-int-ids-for-each-unique-document)
+  - [Dependency Diagram](#dependency-diagram)
 
 # `textreuse` Assets
 
@@ -12,7 +16,7 @@ In this section, we describe all the assets from `textreuse` group. These assets
     - [`textreuse_ids`](/etl_textreuse/assets/raw_textreuses.py#L141)
     - [`textreuses`](/etl_textreuse/assets/raw_textreuses.py#L181)
   
-## Extract Raw BLAST text reuses from zip file
+## Extracting Raw BLAST text reuses from zip file
 
 Indicate the location of the S3 bucket and the name of zip file with the raw BLAST text reuses in the `.env` file:
 
@@ -36,7 +40,7 @@ Where each JSONL file has lines of raw text reuses from BLAST and each line look
 {"text1_id": "0287901000", "text1_text_start": 87858, "text1_text_end": 87966, "text2_id": "0416900101", "text2_text_start": 3535059, "text2_text_end": 3535175, "align_length": 89, "positives_percent": 91.01}
 ```
 
-The `raw_textreuses` asset streams the ZIP file from the S3 bucket using Boto3, strams the JSON lines into a Parquet file with the following schema:
+The [`raw_textreuses`](/etl_textreuse/assets/raw_textreuses.py#L80) asset streams the ZIP file from the S3 bucket using Boto3, strams the JSON lines into a Parquet file with the following schema:
 
 ```bash
 root
@@ -51,6 +55,12 @@ root
  |-- text2_text_end: integer (nullable = true)
  |-- text2_text_start: integer (nullable = true)
 ```
+
+Once the `raw_textreuses` has been materialized, we begin by creating integer ids for each unique source of text reuse by looking at the `text1_id` and `text2_id` attributes and then normalizing the raw hits into text piece and pairs of  reuses.
+
+## Creating INT ids for each unique document
+
+Once
 
 ## Dependency Diagram
 ```mermaid

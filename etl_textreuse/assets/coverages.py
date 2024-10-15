@@ -4,7 +4,7 @@ from etl_textreuse.assets.raw_textreuses import textreuse_ids, textreuses
 from etl_textreuse.assets.reception import reception_edges_denorm
 
 textreuse_sources = SourceAsset(key=AssetKey(
-    "textreuse_sources"), group_name="downstream_metadata", description="The sources of all textreuses")
+    "textreuse_sources"), group_name="upstream_metadata", description="The sources of all textreuses")
 
 
 @asset(
