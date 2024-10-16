@@ -17,7 +17,6 @@ def source_piece_statistics() -> None:
     get_s3(spark, "textreuse_edition_mapping", processed_bucket)
     get_s3(spark, "textreuse_work_mapping", processed_bucket)
     get_s3(spark, "edition_authors", processed_bucket)
-    get_s3(spark, "earliest_work_and_pieces_by_cluster", processed_bucket)
     get_s3(spark, "clustered_defrag_pieces", processed_bucket)
     materialise_s3(
         spark,
