@@ -147,7 +147,7 @@ def reception_edges_between_books_denorm() -> None:
 @asset(
     deps=[reception_edges_between_books_denorm, "textreuse_source_lengths"],
     description="Coverage network from reception/inception only between books",
-    group_name="downstream_textreuses"
+    group_name="additional_assets_for_ville"
 )
 def reception_inception_between_book_coverages() -> None:
     spark = get_spark_session(application_name="Book Reception Coverages")
@@ -285,3 +285,54 @@ def reception_inception_between_book_coverages() -> None:
     """),
     bucket=processed_bucket
     )
+
+@asset(
+    deps=["earliest_book_and_pieces_by_cluster"],
+    group_name="additional_assets_for_ville"
+)
+def db_earliest_book_and_pieces_by_cluster() -> Output[None]:
+    spark = get_spark_session(application_name="Load MariaDB")
+    table = "earliest_book_and_pieces_by_cluster"
+    database = "hpc-hd-newspapers"
+    schema = """
+    CREATE TABLE IF NOT EXISTS `earliest_book_and_pieces_by_cluster`(
+        `cluster_id` int(11) unsigned NOT NULL,
+        `manifestation_id_i` int(11) unsigned NOT NULL,
+        `piece_id` bigint(20) unsigned NOT NULL
+    )ENGINE=Aria PAGE_CHECKSUM=0 TRANSACTIONAL=0;"""
+    index = """
+    ALTER TABLE `earliest_book_and_pieces_by_cluster`
+    ADD INDEX IF NOT EXISTS `cluster_id` (`cluster_id`),
+    ADD INDEX IF NOT EXISTS `manifestation_id_i` (`manifestation_id_i`),
+    ADD INDEX IF NOT EXISTS `piece_id` (`piece_id`);
+    """
+    metadata = load_table(spark,table,processed_bucket,database,schema,index)
+    
+    return Output(None,metadata=metadata)
+
+@asset(
+    deps=["reception_edges_between_books_denorm"],
+    group_name="additional_assets_for_ville"
+)
+def db_reception_edges_between_books_denorm() -> Output[None]:
+    spark = get_spark_session(application_name="Load MariaDB")
+    table = "reception_edges_between_books_denorm"
+    database = "hpc-hd-newspapers"
+    schema = """
+    CREATE TABLE IF NOT EXISTS `reception_edges_between_books_denorm`(
+        `src_trs_id` int(11) unsigned NOT NULL,
+        `src_trs_start` int(11) unsigned NOT NULL,
+        `src_trs_end` int(11) unsigned NOT NULL,
+        `dst_trs_id` int(11) unsigned NOT NULL,
+        `dst_trs_start` int(11) unsigned NOT NULL,
+        `dst_trs_end` int(11) unsigned NOT NULL
+    ) ENGINE=Aria PAGE_CHECKSUM=0 TRANSACTIONAL=0;
+    """
+    index = """
+    ALTER TABLE `reception_edges_between_books_denorm`
+    ADD INDEX IF NOT EXISTS `src_trs_id` (`src_trs_id`),
+    ADD INDEX IF NOT EXISTS `dst_trs_id` (`dst_trs_id`);
+    """
+    metadata = load_table(spark,table,processed_bucket,database,schema,index)
+    
+    return Output(None,metadata=metadata)
