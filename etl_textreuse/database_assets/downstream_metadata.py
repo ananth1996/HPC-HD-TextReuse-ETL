@@ -113,7 +113,7 @@ def db_actor_ids() -> Output[None]:
     deps=["edition_authors"],
     group_name="database"
 )
-def db_actor_ids() -> Output[None]:
+def db_edition_authors() -> Output[None]:
     spark = get_spark_session(application_name="Load MariaDB")
     table = "edition_authors"
     database = os.getenv('DB_DATABASE')
@@ -135,7 +135,7 @@ def db_actor_ids() -> Output[None]:
     deps=["textreuse_source_lengths"],
     group_name="database"
 )
-def db_actor_ids() -> Output[None]:
+def db_textreuse_source_lengths() -> Output[None]:
     spark = get_spark_session(application_name="Load MariaDB")
     table = "textreuse_source_lengths"
     database = os.getenv('DB_DATABASE')
