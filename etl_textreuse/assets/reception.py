@@ -1,25 +1,25 @@
 from etl_textreuse.spark_utils import *
 from dagster import asset, Output
 from etl_textreuse.assets.downstream_clusters import (
-    clustered_defrag_pieces,
+    clustered_defrag_pieces,earliest_manifestation_and_pieces_by_cluster
 )
 from etl_textreuse.assets.defragmentation import defrag_pieces
 
 # Non Source Pieces
 @asset(
-    deps=[earliest_manifestation_and_piece_by_cluster, clustered_defrag_pieces],
+    deps=[earliest_manifestation_and_pieces_by_cluster, clustered_defrag_pieces],
     description="The non-source pieces in each cluster",
     group_name="downstream_textreuses",
 )
 def non_source_pieces() -> Output[None]:
     spark = get_spark_session(application_name="Non Source Pieces")
-    get_s3(spark,"earliest_manifestation_and_piece_by_cluster",processed_bucket)
+    get_s3(spark,"earliest_manifestation_and_pieces_by_cluster",processed_bucket)
     get_s3(spark,"clustered_defrag_pieces",processed_bucket)
     df = materialise_s3_if_not_exists(
         spark,
         fname="non_source_pieces",
         df = spark.sql("""
-        SELECT cluster_id,piece_id FROM earliest_manifestation_and_piece_by_cluster 
+        SELECT cluster_id,piece_id FROM earliest_manifestation_and_pieces_by_cluster 
         RIGHT JOIN clustered_defrag_pieces cdp USING(cluster_id,piece_id) 
         WHERE work_id_i IS NULL -- where it is not the earliest piece
         """),
