@@ -231,7 +231,7 @@ def materialise_with_int_id(spark:SparkSession,fname:str,df:DataFrame,col_name:s
 
 
 def jdbc_opts(conn):
-    url = f"jdbc:mysql://{os.getenv('DB_HOST')}:{os.getenv('DB_PORT')}/{os.getenv['DB_DATABASE']}?permitMysqlScheme"
+    url = f"jdbc:mysql://{os.getenv('DB_HOST')}:{os.getenv('DB_PORT')}/{os.getenv('DB_DATABASE')}?permitMysqlScheme"
     return (conn
         .format("jdbc")
         .option("driver", os.getenv("DB_DRIVER"))
