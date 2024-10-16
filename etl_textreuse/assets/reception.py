@@ -21,7 +21,7 @@ def non_source_pieces() -> Output[None]:
         df = spark.sql("""
         SELECT cluster_id,piece_id FROM earliest_manifestation_and_pieces_by_cluster 
         RIGHT JOIN clustered_defrag_pieces cdp USING(cluster_id,piece_id) 
-        WHERE work_id_i IS NULL -- where it is not the earliest piece
+        WHERE manifestation_id_i IS NULL -- where it is not the earliest piece
         """),
         bucket=processed_bucket
     )
