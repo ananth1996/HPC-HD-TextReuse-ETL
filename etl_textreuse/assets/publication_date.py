@@ -108,29 +108,29 @@ def work_earliest_publication_date() -> None:
     )
 
 
-@asset(
-        deps=[textreuse_edition_mapping, edition_publication_date], 
-        description="The earliest publication date of a textreuse source",
-        group_name="downstream_metadata"
-)
-def textreuse_earliest_publication_date() -> None:
-    spark = get_spark_session(
-        project_root, application_name="Earliest textreuse publication date")
-    get_s3(spark, "edition_publication_date", processed_bucket)
-    get_s3(spark, "textreuse_edition_mapping", processed_bucket)
-    materialise_s3(
-        spark,
-        fname="textreuse_earliest_publication_date",
-        df=spark.sql("""
-        SELECT 
-            trs_id, 
-            MIN(publication_date) as publication_date
-        FROM textreuse_edition_mapping 
-        INNER JOIN edition_publication_date epy USING(edition_id_i)
-        GROUP BY trs_id
-        """),
-        bucket=processed_bucket
-    )
+# @asset(
+#         deps=[textreuse_edition_mapping, edition_publication_date], 
+#         description="The earliest publication date of a textreuse source",
+#         group_name="downstream_metadata"
+# )
+# def textreuse_earliest_publication_date() -> None:
+#     spark = get_spark_session(
+#         project_root, application_name="Earliest textreuse publication date")
+#     get_s3(spark, "edition_publication_date", processed_bucket)
+#     get_s3(spark, "textreuse_edition_mapping", processed_bucket)
+#     materialise_s3(
+#         spark,
+#         fname="textreuse_earliest_publication_date",
+#         df=spark.sql("""
+#         SELECT 
+#             trs_id, 
+#             MIN(publication_date) as publication_date
+#         FROM textreuse_edition_mapping 
+#         INNER JOIN edition_publication_date epy USING(edition_id_i)
+#         GROUP BY trs_id
+#         """),
+#         bucket=processed_bucket
+#     )
 
 
 @asset(
