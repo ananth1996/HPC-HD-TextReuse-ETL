@@ -1,17 +1,18 @@
 from etl_textreuse.spark_utils import get_spark_session,load_table,processed_bucket
 from sqlalchemy import text
 from dagster import asset,Output,MetadataValue
+import os 
 
 @asset(
-    deps=["reception_edges_between_books_denorm"],
+    deps=["reception_edges_denorm"],
     group_name="database"
 )
-def db_reception_edges_between_books_denorm() -> Output[None]:
+def db_reception_edges_denorm() -> Output[None]:
     spark = get_spark_session(application_name="Load MariaDB")
-    table = "reception_edges_between_books_denorm"
-    database = "hpc-hd-newspapers"
+    table = "reception_edges_denorm"
+    database = os.getenv("DB_DATABASE")
     schema = """
-    CREATE TABLE IF NOT EXISTS `reception_edges_between_books_denorm`(
+    CREATE TABLE IF NOT EXISTS `reception_edges_denorm`(
         `src_trs_id` int(11) unsigned NOT NULL,
         `src_trs_start` int(11) unsigned NOT NULL,
         `src_trs_end` int(11) unsigned NOT NULL,
@@ -21,7 +22,7 @@ def db_reception_edges_between_books_denorm() -> Output[None]:
     ) ENGINE=Aria PAGE_CHECKSUM=0 TRANSACTIONAL=0;
     """
     index = """
-    ALTER TABLE `reception_edges_between_books_denorm`
+    ALTER TABLE `reception_edges_denorm`
     ADD INDEX IF NOT EXISTS `src_trs_id` (`src_trs_id`),
     ADD INDEX IF NOT EXISTS `dst_trs_id` (`dst_trs_id`);
     """
@@ -36,7 +37,7 @@ def db_reception_edges_between_books_denorm() -> Output[None]:
 def db_non_source_pieces() -> Output[None]:
     spark = get_spark_session(application_name="Load MariaDB")
     table = "non_source_pieces"
-    database = "hpc-hd-newspapers"
+    database = os.getenv("DB_DATABASE")
     schema = """
     CREATE TABLE IF NOT EXISTS `non_source_pieces` (
         `cluster_id` int(11) unsigned NOT NULL,
