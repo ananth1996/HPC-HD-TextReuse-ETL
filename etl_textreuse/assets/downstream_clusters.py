@@ -35,142 +35,90 @@ def clustered_defrag_pieces() -> Output[None]:
     return Output(None, metadata={"Number of Clusters": num_clusters})
 
 
-@asset(
-    deps=[clustered_defrag_pieces, defrag_pieces,
-          textreuse_earliest_publication_date],
-    description="The earliest textreuse in each cluster",
-    group_name="downstream_textreuses"
-)
-def earliest_textreuse_by_cluster() -> None:
-    spark = get_spark_session(
-        project_root, application_name="Earliest textreuse in cluster")
-    get_s3(spark, "clustered_defrag_pieces", processed_bucket)
-    get_s3(spark, "defrag_pieces", processed_bucket)
-    get_s3(spark, "textreuse_earliest_publication_date", processed_bucket)
-    materialise_s3(
-        spark,
-        fname="earliest_textreuse_by_cluster",
-        df=spark.sql("""
-        SELECT cluster_id, trs_id
-        FROM (
-        SELECT 
-            cluster_id, 
-            trs_id,
-            publication_date,
-            MIN(publication_date) OVER (PARTITION BY cluster_id) AS min_publication_date
-        FROM clustered_defrag_pieces cdp  
-        INNER JOIN defrag_pieces dp USING (piece_id)
-        INNER JOIN textreuse_earliest_publication_date USING (trs_id)
-        )
-        WHERE publication_date=min_publication_date
-        """),
-        bucket=processed_bucket
-    )
+# @asset(
+#     deps=[clustered_defrag_pieces, defrag_pieces,
+#           textreuse_earliest_publication_date],
+#     description="The earliest textreuse in each cluster",
+#     group_name="downstream_textreuses"
+# )
+# def textreuse_earliest_publication_date() -> None:
+#     spark = get_spark_session(
+#         project_root, application_name="Earliest textreuse in cluster")
+#     get_s3(spark, "clustered_defrag_pieces", processed_bucket)
+#     get_s3(spark, "defrag_pieces", processed_bucket)
+#     get_s3(spark, "textreuse_earliest_publication_date", processed_bucket)
+#     materialise_s3(
+#         spark,
+#         fname="earliest_textreuse_by_cluster",
+#         df=spark.sql("""
+#         SELECT cluster_id, trs_id
+#         FROM (
+#         SELECT 
+#             cluster_id, 
+#             trs_id,
+#             publication_date,
+#             MIN(publication_date) OVER (PARTITION BY cluster_id) AS min_publication_date
+#         FROM clustered_defrag_pieces cdp  
+#         INNER JOIN defrag_pieces dp USING (piece_id)
+#         INNER JOIN textreuse_earliest_publication_date USING (trs_id)
+#         )
+#         WHERE publication_date=min_publication_date
+#         """),
+#         bucket=processed_bucket
+#     )
 
 # Find earliest work in cluster each cluster
 #  and also the pieces of the text which is the earliest of that work
 #    in that cluster
 
 
-@asset(
-    deps=[clustered_defrag_pieces, textreuse_earliest_publication_date,
-          work_earliest_publication_date, defrag_pieces],
-    description="The earliest work and corresponding piece in each cluster",
-    group_name="downstream_textreuses"
-)
-def earliest_work_and_pieces_by_cluster() -> None:
-    spark = get_spark_session(
-        project_root, application_name="Earliest work and piece in cluster")
-    get_s3(spark, "clustered_defrag_pieces", processed_bucket)
-    get_s3(spark, "defrag_pieces", processed_bucket)
-    get_s3(spark, "textreuse_earliest_publication_date", processed_bucket)
-    get_s3(spark, "textreuse_work_mapping", processed_bucket)
-    get_s3(spark, "work_earliest_publication_date", processed_bucket)
-    materialise_s3(
-        spark,
-        fname="earliest_work_and_pieces_by_cluster",
-        df=spark.sql("""
-        SELECT cluster_id, work_id_i, piece_id
-        FROM (
-        SELECT 
-            cluster_id,
-            work_id_i,
-            piece_id,
-            w.publication_date AS publication_date_work,
-            t.publication_date AS publication_date_text, 
-            MIN(w.publication_date) OVER (PARTITION BY cluster_id) AS min_publication_date_work, 
-            MIN(t.publication_date) OVER (PARTITION BY cluster_id, work_id_i) AS min_publication_date_text
-        FROM clustered_defrag_pieces cdp
-        INNER JOIN defrag_pieces dp USING (piece_id)
-        INNER JOIN textreuse_work_mapping twm USING (trs_id)
-        INNER JOIN work_earliest_publication_date w USING (work_id_i)
-        INNER JOIN textreuse_earliest_publication_date t USING (trs_id)
-        )
-        WHERE 
-            publication_date_work=min_publication_date_work AND -- earliest work in cluster
-            publication_date_text=min_publication_date_text -- earliest text in earliest work in cluster
-        """),
-        bucket=processed_bucket
-    )
-
-
-@asset(
-    deps=[clustered_defrag_pieces, 
-          "manifestation_publication_date",
-          "textreuse_manifestation_mapping", 
-          "ecco_core",
-          "eebo_core",
-          "manifestation_ids",
-          defrag_pieces],
-    description="The earliest work and corresponding piece in each cluster",
-    group_name="downstream_textreuses"
-)
-def earliest_book_and_pieces_by_cluster() -> Output[None]:
-    spark = get_spark_session(
-        project_root, application_name="Earliest work and piece in cluster")
-    get_s3(spark, "clustered_defrag_pieces", processed_bucket)
-    get_s3(spark, "defrag_pieces", processed_bucket)
-    get_s3(spark, "manifestation_publication_date", processed_bucket)
-    get_s3(spark, "textreuse_manifestation_mapping", processed_bucket)
-    get_s3(spark, "manifestation_ids", processed_bucket)
-    get_s3(spark, "ecco_core", raw_bucket)
-    get_s3(spark, "eebo_core", raw_bucket)
-    df = materialise_s3(
-        spark,
-        fname="earliest_book_and_pieces_by_cluster",
-        df=spark.sql("""
-        SELECT cluster_id,manifestation_id_i,piece_id
-        FROM (
-        SELECT 
-            cluster_id,
-            manifestation_id_i,
-            piece_id,
-            publication_date,
-            MIN(publication_date) OVER (PARTITION BY cluster_id) AS min_publication_date
-        FROM clustered_defrag_pieces cdp
-        INNER JOIN defrag_pieces dp USING (piece_id)
-        INNER JOIN textreuse_manifestation_mapping tmm USING (trs_id)
-        INNER JOIN manifestation_ids mi USING (manifestation_id_i)
-        LEFT JOIN ecco_core ec ON ec.ecco_id = mi.manifestation_id
-        LEFT JOIN eebo_core eb ON eb.eebo_tcp_id = mi.manifestation_id
-        INNER JOIN manifestation_publication_date mpd USING (manifestation_id_i)
-        -- only consider pieces from ECCO and EEBO-TCP
-        WHERE NOT (ec.ecco_id IS NULL AND eb.eebo_tcp_id IS NULL)
-        )
-        WHERE 
-            publication_date=min_publication_date-- earliest work piece
-        """),
-        bucket=processed_bucket
-    )   
-    row_count = df.count()
-    return Output(None,metadata={"Row Count":row_count})
+# @asset(
+#     deps=[clustered_defrag_pieces, textreuse_earliest_publication_date,
+#           work_earliest_publication_date, defrag_pieces],
+#     description="The earliest work and corresponding piece in each cluster",
+#     group_name="downstream_textreuses"
+# )
+# def earliest_work_and_pieces_by_cluster() -> None:
+#     spark = get_spark_session(
+#         project_root, application_name="Earliest work and piece in cluster")
+#     get_s3(spark, "clustered_defrag_pieces", processed_bucket)
+#     get_s3(spark, "defrag_pieces", processed_bucket)
+#     get_s3(spark, "textreuse_earliest_publication_date", processed_bucket)
+#     get_s3(spark, "textreuse_work_mapping", processed_bucket)
+#     get_s3(spark, "work_earliest_publication_date", processed_bucket)
+#     materialise_s3(
+#         spark,
+#         fname="earliest_work_and_pieces_by_cluster",
+#         df=spark.sql("""
+#         SELECT cluster_id, work_id_i, piece_id
+#         FROM (
+#         SELECT 
+#             cluster_id,
+#             work_id_i,
+#             piece_id,
+#             w.publication_date AS publication_date_work,
+#             t.publication_date AS publication_date_text, 
+#             MIN(w.publication_date) OVER (PARTITION BY cluster_id) AS min_publication_date_work, 
+#             MIN(t.publication_date) OVER (PARTITION BY cluster_id, work_id_i) AS min_publication_date_text
+#         FROM clustered_defrag_pieces cdp
+#         INNER JOIN defrag_pieces dp USING (piece_id)
+#         INNER JOIN textreuse_work_mapping twm USING (trs_id)
+#         INNER JOIN work_earliest_publication_date w USING (work_id_i)
+#         INNER JOIN textreuse_earliest_publication_date t USING (trs_id)
+#         )
+#         WHERE 
+#             publication_date_work=min_publication_date_work AND -- earliest work in cluster
+#             publication_date_text=min_publication_date_text -- earliest text in earliest work in cluster
+#         """),
+#         bucket=processed_bucket
+#     )
 
 @asset(
     deps=[clustered_defrag_pieces, 
           "manifestation_publication_date",
           "textreuse_manifestation_mapping", 
           defrag_pieces],
-    description="The earliest work and corresponding piece in each cluster",
+    description="The earliest manifestation and corresponding piece in each cluster",
     group_name="downstream_textreuses"
 )
 def earliest_manifestation_and_pieces_by_cluster() -> None:
