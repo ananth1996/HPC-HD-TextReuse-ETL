@@ -1,9 +1,7 @@
 from etl_textreuse.spark_utils import *
-from dagster import asset, Output, MetadataValue
-from etl_textreuse.assets.publication_date import textreuse_earliest_publication_date, work_earliest_publication_date
+from dagster import asset, Output
 from etl_textreuse.assets.chinese_label_propagation import clusters
 from etl_textreuse.assets.defragmentation import defrag_pieces
-from etl_textreuse.assets.ids_and_mappings import textreuse_work_mapping
 # %%
 
 
