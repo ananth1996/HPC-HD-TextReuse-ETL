@@ -88,7 +88,6 @@ def db_work_ids() -> Output[None]:
     index = """
     ALTER TABLE `work_ids`
         ADD PRIMARY KEY (`work_id_i`),
-        ADD INDEX IF NOT EXISTS `work_covering` (`work_id`,`work_id_i`); 
     """
     metadata = load_table(spark,table,processed_bucket,database,schema,index)
     return Output(None,metadata=metadata)
@@ -119,7 +118,7 @@ def db_textreuse_manifestation_mapping() -> Output[None]:
     deps=["textreuse_work_mapping"],
     group_name="database"
 )
-def db_textreuse_work_mapping() -> None:
+def db_textreuse_work_mapping() -> Output[None]:
     spark = get_spark_session(application_name="Load MariaDB")
     table = "textreuse_work_mapping"
     database = os.getenv("DB_DATABASE")
@@ -140,7 +139,7 @@ def db_textreuse_work_mapping() -> None:
     deps=["textreuse_edition_mapping"],
     group_name="database"
 )
-def db_textreuse_edition_mapping() -> None:
+def db_textreuse_edition_mapping() -> Output[None]:
     spark = get_spark_session(application_name="Load MariaDB")
     table = "textreuse_edition_mapping"
     database = os.getenv("DB_DATABASE")
@@ -161,7 +160,7 @@ def db_textreuse_edition_mapping() -> None:
     deps=["edition_mapping"],
     group_name="database"
 )
-def db_edition_mapping() -> None:
+def db_edition_mapping() -> Output[None]:
     spark = get_spark_session(application_name="Load MariaDB")
     table = "edition_mapping"
     database = os.getenv("DB_DATABASE")
@@ -183,7 +182,7 @@ def db_edition_mapping() -> None:
     deps=["work_mapping"],
     group_name="database"
 )
-def db_work_mapping() -> None:
+def db_work_mapping() -> Output[None]:
     spark = get_spark_session(application_name="Load MariaDB")
     table = "work_mapping"
     database = os.getenv("DB_DATABASE")

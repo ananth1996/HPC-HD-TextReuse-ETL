@@ -23,7 +23,6 @@ def db_manifestation_publication_date() -> Output[None]:
     """
     metadata = load_table(spark,table,processed_bucket,database,schema,index)
     return Output(None,metadata=metadata)
-    return Output(None,metadata=metadata)
 
 @asset(
     deps=["edition_publication_date"],
@@ -71,7 +70,7 @@ def db_work_earliest_publication_date() -> Output[None]:
     deps=["manifestation_title"],
     group_name="database"
 )
-def db_manifestation_title() -> None:
+def db_manifestation_title() -> Output[None]:
     spark = get_spark_session(application_name="Load MariaDB")
     table = "manifestation_title"
     database = os.getenv('DB_DATABASE')
@@ -84,7 +83,8 @@ def db_manifestation_title() -> None:
     ALTER TABLE `manifestation_title`
     ADD PRIMARY KEY (`manifestation_id_i`);
     """
-    load_table(spark,table,processed_bucket,database,schema,index)
+    metadata = load_table(spark,table,processed_bucket,database,schema,index)
+    return Output(None,metadata=metadata)
 
 @asset(
     deps=["actor_ids"],
