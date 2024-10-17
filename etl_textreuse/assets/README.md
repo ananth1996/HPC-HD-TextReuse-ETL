@@ -3,6 +3,7 @@ We describe the Dagster Assets from different groups.
 # Table of Contents
 - [Table of Contents](#table-of-contents)
 - [`textreuse` Assets](#textreuse-assets)
+  - [Materialized Assets](#materialized-assets)
   - [`raw_textreuses` : Extracting Raw BLAST text reuses from zip file](#raw_textreuses--extracting-raw-blast-text-reuses-from-zip-file)
   - [`textreuse_ids` : Creating INT ids for each unique document](#textreuse_ids--creating-int-ids-for-each-unique-document)
   - [`textreuses`: Creating integer ids for each BLAST hit](#textreuses-creating-integer-ids-for-each-blast-hit)
@@ -11,21 +12,29 @@ We describe the Dagster Assets from different groups.
   - [Clustering the Text Reuse Graph](#clustering-the-text-reuse-graph)
   - [Dependency Graph](#dependency-graph)
 - [`metadata` Assets](#metadata-assets)
-- [Materialized Assets](#materialized-assets)
+  - [Materialized Assets](#materialized-assets-1)
   - [`newspapers_core`: Parsing Newspapers Metadata](#newspapers_core-parsing-newspapers-metadata)
   - [Levels of Metadata](#levels-of-metadata)
     - [Manifestation](#manifestation)
     - [Editions](#editions)
     - [Works](#works)
   - [`textreuse_sources` Raw Document Texts](#textreuse_sources-raw-document-texts)
+- [`downstream_metadata` Assets](#downstream_metadata-assets)
+  - [Materialized Assets](#materialized-assets-2)
+  - [Actors and Authors](#actors-and-authors)
+  - [Publication Dates](#publication-dates)
+  - [Manifestation Titles and Source Lengths](#manifestation-titles-and-source-lengths)
 
 # `textreuse` Assets
 
 In this section, we describe all the assets from `textreuse` group. These assets are related to the ETL of the raw BLAST data.
 
-1. Upstream Assets:
+##  Materialized Assets
+
+Upstream Assets:
    - `BLAST_ZIP_FILE`: Name of zip file with Raw BLAST Text Reuses
-2. S3 Materialized Assets
+
+Materialized Assets
     - [`raw_textreuses`](/etl_textreuse/assets/raw_textreuses.py#L80)
     - [`textreuse_ids`](/etl_textreuse/assets/raw_textreuses.py#L141)
     - [`textreuses`](/etl_textreuse/assets/raw_textreuses.py#L181)
@@ -268,8 +277,7 @@ clusters --> clustered_defrag_pieces;
 The metadata assets parsed from the upstream sources.
 The upstream assets required are described in [/etl_textreuse/README.md](../README.md#upstream-assets). These assets need to be uploaded to the same `RAW_BUCKET` location on Allas.
 
-
-# Materialized Assets
+## Materialized Assets
 
 All the materialized metadata assets
 
@@ -400,3 +408,84 @@ textreuse_sources
 ```
 
 Among the attributes the most useful one are the `doc_id` which corresponds to `text_name` in the `textreuse_ids` asset and the `text` which the raw document text.
+
+
+# `downstream_metadata` Assets
+
+The metadata attributes that would be useful for downstream tasks are extracted from the metadata assets and directly mapped to `trs_id` and materialized.
+
+## Materialized Assets
+
+
+- [`actor_ids`](./actors_and_authors.py#L11)
+  - [`eiditon_authors`](./actors_and_authors.py#L35)
+- Publication Dates
+  - [`edition_publication_date`](./publication_date.py#L15)
+  - [`manifestation_publication_date`](./publication_date.py#L141)
+  - [`work_earliest_publication_date`](./publication_date.py#L92)
+- [`manifestation_title`](./titles.py#L10)
+- [`textreuse_source_lengths`](./coverages.py#L13)
+
+## Actors and Authors
+
+One attribute that is useful is the authorship of documents. We primarily get this information for books from the `estc_actor_links` and `estc_actors` upstream assets. Using, these assets we first materialize all the unique actors with integer ids in the [`actor_ids`](./actors_and_authors.py#L11) table with the following schema:
+
+```bash
+actor_ids
+ |-- actor_id_i: long (nullable = true)
+ |-- actor_id: string (nullable = true)
+ |-- name_unified: string (nullable = true)
+```
+
+In the ESTC metadata, actors have several roles associated with editions, like publisher, printer, engraver, author, etc. As we are mostly interested in authorship, we materialize the [`eiditon_authors`](./actors_and_authors.py#L35) with the following schema:
+
+```bash
+edition_authors
+ |-- edition_id_i: long (nullable = true)
+ |-- actor_id_i: long (nullable = true)
+```
+
+> [!NOTE]
+> In the future this can be extended to create an asset called `textreuse_authors` to directly map `trs_id` to `actor_id_i`
+
+
+## Publication Dates
+
+Another important attribute are the dates of publication of documents. We have several upstream sources for this metadata attribute. The ESTC has a `publication_year` attribute at the edition level. We first materialize the [`edition_publication_date`](./publication_date.py#L15) asset parsing this attribute with the following schema:
+
+```bash
+edition_publication_date
+ |-- edition_id_i: long (nullable = true)
+ |-- publication_date: date (nullable = true)
+```
+
+However, since the edition level is at a higher order, it may have only one publication date for several manifestations grouped into an edition. Therefore, we instead create a [`manifestation_publication_date`](./publication_date.py#L141) asset which first prefers to take the publication date from the collections primary metadata source (`ecco_core`,`eebo_core` and `newspapers_core`). If the primary source does not contain a publication date (or decade) then the ESTC metadata is considered for the date. Check [`publication_date.py](./publication_date.py) for the parsing logic. The schema of the resulting asset is as follows: 
+
+```bash
+|-- manifestation_id_i: long (nullable = true)
+|-- publication_date: date (nullable = true)
+```
+
+
+For the work-level, we perform an aggregation of the edition level publication dates and pick the earliest publication date for a given work.
+
+> [!CAUTION]
+> It might be better to compute the earliest work publication date with a more complex logic combining information about the earliest manifestation and edition. We choose to keep the logic simple here.
+
+
+## Manifestation Titles and Source Lengths
+
+Other attributes that were materialized were the document titles of manifestations and the length of the raw source texts in the [`manifestation_title`](./titles.py#L10) and [`textreuse_source_lengths`](./coverages.py#L13) assets respectively. Their schemas are :
+
+
+```bash
+manifestation_title
+ |-- manifestation_id_i: long (nullable = true)
+ |-- title: string (nullable = true)
+```
+
+```bash
+textreuse_source_lenghts
+ |-- trs_id: long (nullable = true)
+ |-- text_length: integer (nullable = true)
+```
