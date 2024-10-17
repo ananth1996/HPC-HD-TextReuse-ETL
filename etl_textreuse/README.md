@@ -55,7 +55,7 @@ Using the upstream assets we extract, transform and load to create several downs
 5. `denormalized`: Denormalized versions of the `downstream_textreuses` assets meant specifically for loading into MariaDB for indexing.
 6. `database`: Assets corresponding to the loading of Parquet dataframes into MariaDB database tables.
 
-Each group of assets is described more in detail in the [assets/README.md](./assets/README.md) file. 
+Each group of assets is described more in detail in the [assets/README.md](./assets/README.md) and [database_assets/README.md](./database_assets/README.md) files.
 
 ## Materializing Assets
 
