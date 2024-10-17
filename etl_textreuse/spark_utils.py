@@ -243,6 +243,21 @@ def jdbc_opts(conn):
 
 
 def load_table(spark:SparkSession,table:str,bucket:str,database:str,schema:str,index:str,table_name:Optional[str]=None) -> Dict[str,float]:
+    """Function to load a Spark DataFrame into a SQL database. Creates the table given a schema, bulk-loads data using JDBC and performs indexing if needed.
+
+
+    Args:
+        spark (SparkSession): The spark session to use
+        table (str): The name of the table in S3 storage
+        bucket (str): The S3 bucket 
+        database (str): The name of the database to insert into
+        schema (str): The SQL schema of the table in the database
+        index (str): The SQL index for the table in the database
+        table_name (Optional[str], optional): The name to store the table in the database. Defaults to None.
+
+    Returns:
+        Dict[str,float]: _description_
+    """
     # load spark table
     df = get_s3(spark,table,bucket)
     engine = get_sqlalchemy_engine()

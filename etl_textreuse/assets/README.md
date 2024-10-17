@@ -29,7 +29,7 @@ We describe the Dagster Assets from different groups.
   - [Reception Task Assets](#reception-task-assets)
   - [Coverages](#coverages)
     - [`coverages` : Standard Coverage Metric](#coverages--standard-coverage-metric)
-  - [`reception_inception_coverages`: Coverage Metric Based on Reception](#reception_inception_coverages-coverage-metric-based-on-reception)
+    - [`reception_inception_coverages`: Coverage Metric Based on Reception](#reception_inception_coverages-coverage-metric-based-on-reception)
   - [Source Piece Statistics](#source-piece-statistics)
 
 # `textreuse` Assets
@@ -604,7 +604,7 @@ coverges
 where the `*_reuses` attributes are the number of contiguous reuse section in the document (i.e., number of islands). This table is denormalized as it contains the `_length` attributes from the `textreuse_source_lengths` asset.
 
 
-## `reception_inception_coverages`: Coverage Metric Based on Reception
+### `reception_inception_coverages`: Coverage Metric Based on Reception
 
 When we define teh $reuse(D_1,D_2)$ as the reception of D1 in D2, then instead of taking all reuses between $D_1$ and $D_2$, we restrict the reuses to only those which have been identified as reception. Therefore, we use the `reception_edges_denorm` and perform the gaps and islands merging to materialize the [`reception_inception_coverages`](./coverages.py#L173) asset with the following schema:
 

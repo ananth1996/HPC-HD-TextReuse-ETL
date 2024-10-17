@@ -1,0 +1,3 @@
+# Database Assets
+
+Assets in Dagster to bulk-load Spark DataFrames into the MariaDB instance. They use the `load_table` function from [spark_utils](/etl_textreuse/spark_utils.py#L246) to open a connection to the database, run the `CREATE TABLE ...` commands, bulk-load the DataFrame using JDBC drivers and perform `ALTER TABLE..` command on the database to index required columns. The function ensures that the table in the database has the same number of rows and returns the row count and the times taken to load and index the table. This is used in each Dagster assets to bulk-load the necessary asset into the database.
