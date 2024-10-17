@@ -87,7 +87,7 @@ def db_work_ids() -> Output[None]:
     """ 
     index = """
     ALTER TABLE `work_ids`
-        ADD PRIMARY KEY (`work_id_i`),
+        ADD PRIMARY KEY (`work_id_i`)
     """
     metadata = load_table(spark,table,processed_bucket,database,schema,index)
     return Output(None,metadata=metadata)
