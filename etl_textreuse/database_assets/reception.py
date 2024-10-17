@@ -10,7 +10,7 @@ import os
 def db_reception_edges_denorm() -> Output[None]:
     spark = get_spark_session(application_name="Load MariaDB")
     table = "reception_edges_denorm"
-    database = os.getenv("DB_DATABASE")
+    database = os.environ["DB_DATABASE"]
     schema = """
     CREATE TABLE IF NOT EXISTS `reception_edges_denorm`(
         `src_trs_id` int(11) unsigned NOT NULL,
@@ -37,7 +37,7 @@ def db_reception_edges_denorm() -> Output[None]:
 def db_non_source_pieces() -> Output[None]:
     spark = get_spark_session(application_name="Load MariaDB")
     table = "non_source_pieces"
-    database = os.getenv("DB_DATABASE")
+    database = os.environ["DB_DATABASE"]
     schema = """
     CREATE TABLE IF NOT EXISTS `non_source_pieces` (
         `cluster_id` int(11) unsigned NOT NULL,

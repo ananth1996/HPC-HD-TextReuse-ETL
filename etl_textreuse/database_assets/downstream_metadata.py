@@ -11,7 +11,7 @@ import os
 def db_manifestation_publication_date() -> Output[None]:
     spark = get_spark_session(application_name="Load MariaDB")
     table = "manifestation_publication_date"
-    database = os.getenv('DB_DATABASE')
+    database = os.environ["DB_DATABASE"]
     schema = """
     CREATE TABLE IF NOT EXISTS `manifestation_publication_date`(
         `manifestation_id_i` int(11) unsigned NOT NULL,
@@ -31,7 +31,7 @@ def db_manifestation_publication_date() -> Output[None]:
 def db_edition_publication_date() -> Output[None]:
     spark = get_spark_session(application_name="Load MariaDB")
     table = "edition_publication_date"
-    database = os.getenv('DB_DATABASE')
+    database = os.environ["DB_DATABASE"]
     schema = """
     CREATE TABLE IF NOT EXISTS `edition_publication_date`(
         `edition_id_i` int(11) unsigned NOT NULL,
@@ -52,7 +52,7 @@ def db_edition_publication_date() -> Output[None]:
 def db_work_earliest_publication_date() -> Output[None]:
     spark = get_spark_session(application_name="Load MariaDB")
     table = "work_earliest_publication_date"
-    database = os.getenv('DB_DATABASE')
+    database = os.environ["DB_DATABASE"]
     schema = """
     CREATE TABLE IF NOT EXISTS `work_earliest_publication_date` (
         `work_id_i` int(11) unsigned NOT NULL,
@@ -73,7 +73,7 @@ def db_work_earliest_publication_date() -> Output[None]:
 def db_manifestation_title() -> Output[None]:
     spark = get_spark_session(application_name="Load MariaDB")
     table = "manifestation_title"
-    database = os.getenv('DB_DATABASE')
+    database = os.environ["DB_DATABASE"]
     schema = """
     CREATE TABLE IF NOT EXISTS `manifestation_title`(
         `manifestation_id_i` int(11) unsigned NOT NULL,
@@ -93,7 +93,7 @@ def db_manifestation_title() -> Output[None]:
 def db_actor_ids() -> Output[None]:
     spark = get_spark_session(application_name="Load MariaDB")
     table = "actor_ids"
-    database = os.getenv('DB_DATABASE')
+    database = os.environ["DB_DATABASE"]
     schema = """
     CREATE TABLE IF NOT EXISTS `actor_ids`(
         `actor_id_i` int(11) unsigned NOT NULL,
@@ -116,7 +116,7 @@ def db_actor_ids() -> Output[None]:
 def db_edition_authors() -> Output[None]:
     spark = get_spark_session(application_name="Load MariaDB")
     table = "edition_authors"
-    database = os.getenv('DB_DATABASE')
+    database = os.environ["DB_DATABASE"]
     schema = """
     CREATE TABLE IF NOT EXISTS `edition_authors` (
         `edition_id_i` int(11) unsigned NOT NULL,
@@ -138,7 +138,7 @@ def db_edition_authors() -> Output[None]:
 def db_textreuse_source_lengths() -> Output[None]:
     spark = get_spark_session(application_name="Load MariaDB")
     table = "textreuse_source_lengths"
-    database = os.getenv('DB_DATABASE')
+    database = os.environ["DB_DATABASE"]
     schema = """
     CREATE TABLE IF NOT EXISTS `textreuse_source_lengths` (
         `trs_id` int(11) unsigned NOT NULL,

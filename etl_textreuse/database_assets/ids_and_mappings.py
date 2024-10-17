@@ -10,7 +10,7 @@ from dagster import asset,Output
 def db_textreuse_ids() -> Output[None]:
     spark = get_spark_session(application_name="Load MariaDB")
     table = "textreuse_ids"
-    database = os.getenv("DB_DATABASE")
+    database = os.environ["DB_DATABASE"]
     schema = """
     CREATE TABLE IF NOT EXISTS `textreuse_ids` (
         `trs_id` int(11) unsigned NOT NULL,
@@ -34,7 +34,7 @@ def db_textreuse_ids() -> Output[None]:
 def db_manifestation_ids() -> Output[None]:
     spark = get_spark_session(application_name="Load MariaDB")
     table = "manifestation_ids"
-    database = os.getenv("DB_DATABASE")
+    database = os.environ["DB_DATABASE"]
     schema = """
     CREATE TABLE IF NOT EXISTS `manifestation_ids`(
         `manifestation_id_i` int(11) unsigned NOT NULL,
@@ -56,7 +56,7 @@ def db_manifestation_ids() -> Output[None]:
 def db_edition_ids() -> Output[None]:
     spark = get_spark_session(application_name="Load MariaDB")
     table = "edition_ids"
-    database = os.getenv("DB_DATABASE")
+    database = os.environ["DB_DATABASE"]
     schema = """
     CREATE TABLE IF NOT EXISTS `edition_ids`(
         `edition_id_i` int(11) unsigned NOT NULL,
@@ -78,7 +78,7 @@ def db_edition_ids() -> Output[None]:
 def db_work_ids() -> Output[None]:
     spark = get_spark_session(application_name="Load MariaDB")
     table = "work_ids"
-    database = os.getenv("DB_DATABASE")
+    database = os.environ["DB_DATABASE"]
     schema = """
     CREATE TABLE IF NOT EXISTS `work_ids`(
         `work_id_i` int(11) unsigned NOT NULL,
@@ -99,7 +99,7 @@ def db_work_ids() -> Output[None]:
 def db_textreuse_manifestation_mapping() -> Output[None]:
     spark = get_spark_session(application_name="Load MariaDB")
     table = "textreuse_manifestation_mapping"
-    database = os.getenv("DB_DATABASE")
+    database = os.environ["DB_DATABASE"]
     schema = """
     CREATE TABLE IF NOT EXISTS `textreuse_manifestation_mapping`(
         `trs_id` int(11) unsigned NOT NULL,
@@ -121,7 +121,7 @@ def db_textreuse_manifestation_mapping() -> Output[None]:
 def db_textreuse_work_mapping() -> Output[None]:
     spark = get_spark_session(application_name="Load MariaDB")
     table = "textreuse_work_mapping"
-    database = os.getenv("DB_DATABASE")
+    database = os.environ["DB_DATABASE"]
     schema = """
     CREATE TABLE IF NOT EXISTS `textreuse_work_mapping`(
         `trs_id` int(11) unsigned NOT NULL,
@@ -142,7 +142,7 @@ def db_textreuse_work_mapping() -> Output[None]:
 def db_textreuse_edition_mapping() -> Output[None]:
     spark = get_spark_session(application_name="Load MariaDB")
     table = "textreuse_edition_mapping"
-    database = os.getenv("DB_DATABASE")
+    database = os.environ["DB_DATABASE"]
     schema = """
     CREATE TABLE IF NOT EXISTS `textreuse_edition_mapping`(
         `trs_id` int(11) unsigned NOT NULL,
@@ -163,7 +163,7 @@ def db_textreuse_edition_mapping() -> Output[None]:
 def db_edition_mapping() -> Output[None]:
     spark = get_spark_session(application_name="Load MariaDB")
     table = "edition_mapping"
-    database = os.getenv("DB_DATABASE")
+    database = os.environ["DB_DATABASE"]
     schema = """
     CREATE TABLE IF NOT EXISTS `edition_mapping`(
         `manifestation_id_i` int(11) unsigned NOT NULL,
@@ -185,7 +185,7 @@ def db_edition_mapping() -> Output[None]:
 def db_work_mapping() -> Output[None]:
     spark = get_spark_session(application_name="Load MariaDB")
     table = "work_mapping"
-    database = os.getenv("DB_DATABASE")
+    database = os.environ["DB_DATABASE"]
     schema = """
     CREATE TABLE IF NOT EXISTS `work_mapping`(
         `manifestation_id_i` int(11) unsigned NOT NULL,

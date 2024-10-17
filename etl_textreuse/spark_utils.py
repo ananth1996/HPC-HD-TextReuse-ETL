@@ -14,8 +14,8 @@ from etl_textreuse.database_utils import get_sqlalchemy_engine
 from sqlalchemy import text
 from time import perf_counter as time
 # the buckets
-processed_bucket = os.getenv("PROCESSED_BUCKET")
-raw_bucket = os.getenv("RAW_BUCKET")
+processed_bucket = os.environ["PROCESSED_BUCKET"]
+raw_bucket = os.environ["RAW_BUCKET"]
 
 def get_spark_session(project_root:Path=project_root,application_name:str="ETL"):
     #findspark.add_packages("graphframes:graphframes:0.8.2-spark3.2-s_2.12"
@@ -27,7 +27,7 @@ def get_spark_session(project_root:Path=project_root,application_name:str="ETL")
             .config("spark.sql.parquet.datetimeRebaseModeInWrite","CORRECTED")
             # .config("spark.hadoop.fs.s3a.ssl.channel.mode","openssl")
             # Send the zipfile of the archive to all workers to ensure they have the same Python environment
-            .config("spark.archives",str(os.getenv("VENV_ZIP_FILE"))) # to send the environment to workers
+            .config("spark.archives",str(os.environ["VENV_ZIP_FILE"])) # to send the environment to workers
             .config('spark.ui.showConsoleProgress', 'false')
             #.config('spark.graphx.pregel.checkpointInterval','1')
             .config("spark.hadoop.mapreduce.fileoutputcommitter.algorithm.version","2")
@@ -36,9 +36,9 @@ def get_spark_session(project_root:Path=project_root,application_name:str="ETL")
     spark.sparkContext.setLogLevel("WARN")
     sc = spark.sparkContext
     # set up credentials for spark
-    sc._jsc.hadoopConfiguration().set("fs.s3a.access.key", os.getenv("AWS_ACCESS_KEY_ID"))
-    sc._jsc.hadoopConfiguration().set("fs.s3a.secret.key", os.getenv("AWS_SECRET_KEY"))
-    sc._jsc.hadoopConfiguration().set("fs.s3a.endpoint", os.getenv("AWS_ENDPOINT_URL"))
+    sc._jsc.hadoopConfiguration().set("fs.s3a.access.key", os.environ["AWS_ACCESS_KEY_ID"])
+    sc._jsc.hadoopConfiguration().set("fs.s3a.secret.key", os.environ["AWS_SECRET_KEY"])
+    sc._jsc.hadoopConfiguration().set("fs.s3a.endpoint", os.environ["AWS_ENDPOINT_URL"])
     sc.setCheckpointDir(f"s3a://{processed_bucket}/checkpoints")
 
     return spark
@@ -231,15 +231,15 @@ def materialise_with_int_id(spark:SparkSession,fname:str,df:DataFrame,col_name:s
 
 
 def jdbc_opts(conn):
-    url = f"jdbc:mysql://{os.getenv('DB_HOST')}:{os.getenv('DB_PORT')}/{os.getenv('DB_DATABASE')}?permitMysqlScheme"
+    url = f"jdbc:mysql://{os.environ['DB_HOST']}:{os.environ['DB_PORT']}/{os.environ['DB_DATABASE']}?permitMysqlScheme"
     return (conn
         .format("jdbc")
-        .option("driver", os.getenv("DB_DRIVER"))
+        .option("driver", os.environ["DB_DRIVER"])
         .option("url", url)
-        .option("user", os.getenv("DB_USERNAME"))
-        .option("password", os.getenv("DB_PASSWORD"))
-        .option("fetchsize",os.getenv("DB_FETCHSIZE"))
-        .option("batchsize",os.getenv("DB_BATCHSIZE")))
+        .option("user", os.environ["DB_USERNAME"])
+        .option("password", os.environ["DB_PASSWORD"])
+        .option("fetchsize",os.environ["DB_FETCHSIZE"])
+        .option("batchsize",os.environ["DB_BATCHSIZE"]))
 
 
 def load_table(spark:SparkSession,table:str,bucket:str,database:str,schema:str,index:str,table_name:Optional[str]=None) -> Dict[str,float]:

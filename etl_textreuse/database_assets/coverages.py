@@ -10,7 +10,7 @@ import os
 def db_reception_inception_coverages() -> Output[None]:
     spark = get_spark_session(application_name="Load MariaDB")
     table = "reception_inception_coverages"
-    database = os.getenv("DB_DATABASE")
+    database = os.environ["DB_DATABASE"]
     schema = """
     CREATE TABLE IF NOT EXISTS `reception_inception_coverages` (
         `src_trs_id` int(11) unsigned NOT NULL,
@@ -43,7 +43,7 @@ def db_reception_inception_coverages() -> Output[None]:
 def db_coverages() -> Output[None]:
     spark = get_spark_session(application_name="Load MariaDB")
     table = "coverages"
-    database = os.getenv("DB_DATABASE")
+    database = os.environ["DB_DATABASE"]
     schema = """
     CREATE TABLE IF NOT EXISTS `coverages` (
         `trs1_id` int(11) unsigned NOT NULL,

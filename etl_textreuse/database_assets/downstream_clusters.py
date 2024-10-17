@@ -12,7 +12,7 @@ import os
 def db_clustered_defrag_pieces() -> Output[None]:
     spark = get_spark_session(application_name="Load MariaDB")
     table = "clustered_defrag_pieces"
-    database = os.getenv("DB_DATABASE")
+    database = os.environ["DB_DATABASE"]
     schema = """
     CREATE TABLE IF NOT EXISTS `clustered_defrag_pieces` (
         `piece_id` bigint(20) unsigned NOT NULL,
@@ -34,7 +34,7 @@ def db_clustered_defrag_pieces() -> Output[None]:
 def db_earliest_manifestation_and_pieces_by_cluster() -> Output[None]:
     spark = get_spark_session(application_name="Load MariaDB")
     table = "earliest_manifestation_and_pieces_by_cluster"
-    database = os.getenv("DB_DATABASE")
+    database = os.environ["DB_DATABASE"]
     schema = """
     CREATE TABLE IF NOT EXISTS `earliest_manifestation_and_pieces_by_cluster`(
         `cluster_id` int(11) unsigned NOT NULL,
