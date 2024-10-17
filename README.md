@@ -11,10 +11,15 @@ A streaming approach to extract the contents of the textreuse data.
     - [Code and Python Dependencies](#code-and-python-dependencies)
     - [MariaDB Database](#mariadb-database)
     - [Dagster](#dagster)
+  - [Next Steps](#next-steps)
 
 ## Prerequisites 
 
 The following setup is necessary to run the pipeline.
+
+
+> [!TIP]
+> All configurations go in a `.env` file. Take a look at the [`.env-template` ](./.env-template) file for a template of all the environment variables required to be configured
 
 ### Access to Allas
 
@@ -145,3 +150,9 @@ dagster-daemon run
 ```
 
 Then follow the route in Rahti to access the Dagster web interface.
+
+## Next Steps
+
+Take a look at [./etl_textreuse/README.md](/etl_textreuse/README.md) for details on how to use Dagster to materialize assets.
+
+Check out [./etc_textreuse/assets/README.md](./etl_textreuse/assets/README.md) for comprehensive details about the various ETL assets. 
