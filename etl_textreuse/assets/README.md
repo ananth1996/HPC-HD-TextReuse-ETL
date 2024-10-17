@@ -1,6 +1,5 @@
 We describe the Dagster Assets from different groups. 
 
-
 # Table of Contents
 - [Table of Contents](#table-of-contents)
 - [`textreuse` Assets](#textreuse-assets)
@@ -11,6 +10,14 @@ We describe the Dagster Assets from different groups.
   - [Defragmenting raw BLAST hits](#defragmenting-raw-blast-hits)
   - [Clustering the Text Reuse Graph](#clustering-the-text-reuse-graph)
   - [Dependency Graph](#dependency-graph)
+- [`metadata` Assets](#metadata-assets)
+- [Materialized Assets](#materialized-assets)
+  - [`newspapers_core`: Parsing Newspapers Metadata](#newspapers_core-parsing-newspapers-metadata)
+  - [Levels of Metadata](#levels-of-metadata)
+    - [Manifestation](#manifestation)
+    - [Editions](#editions)
+    - [Works](#works)
+  - [`textreuse_sources` Raw Document Texts](#textreuse_sources-raw-document-texts)
 
 # `textreuse` Assets
 
@@ -254,4 +261,142 @@ piece_id_mappings --> defrag_pieces;
 defrag_textreuses --> adjacency_list;
 adjacency_list --> clusters;
 clusters --> clustered_defrag_pieces;
-````
+```
+
+# `metadata` Assets
+
+The metadata assets parsed from the upstream sources.
+The upstream assets required are described in [/etl_textreuse/README.md](../README.md#upstream-assets). These assets need to be uploaded to the same `RAW_BUCKET` location on Allas.
+
+
+# Materialized Assets
+
+All the materialized metadata assets
+
+- [`newspapers_core`](./upstream_metadata.py#L17)
+- [`manifestation_ids`](./ids_and_mappings.py#L17)
+  - [`textreuse_manifestation_mapping`](./ids_and_mappings.py#L211)
+- [`edition_ids`](./ids_and_mappings.py#L62)
+  - [`edition_mapping`](./ids_and_mappings.py#L62) : `manifestation_id_i` <--> `edition_id_i`
+  - [`textreuse_edition_mapping`](./ids_and_mappings.py#L164): `trs_id` <--> `edition_id_i`     
+- [`work_ids`](./ids_and_mappings.py#L125)
+  - [`work_mapping`](./ids_and_mappings.py#L125) : `manifestation_id_i` <--> `work_id_i`
+  - [`textreuse_work_mapping`](./ids_and_mappings.py#L188): `trs_id` <--> `work_id_i`
+- [`textreuse_sources`](./raw_textreuses.py)
+
+## `newspapers_core`: Parsing Newspapers Metadata
+
+Taking the `bl_newspapers.csv` and parsing the dates correctly and materializing into the [`newspapers_core`](./upstream_metadata.py#L17) asset. The schema looks like :
+
+```bash
+newspapers_core
+ |-- article_id: string (nullable = true)
+ |-- octavo_newspaper_id: string (nullable = true)
+ |-- issue_id: string (nullable = true)
+ |-- newspaper_title: string (nullable = true)
+ |-- vol_no: string (nullable = true)
+ |-- issue_no: string (nullable = true)
+ |-- thematic_collection: string (nullable = true)
+ |-- octavo_collection: string (nullable = true)
+ |-- issue_date_start: string (nullable = true)
+ |-- issue_date_end: string (nullable = true)
+ |-- original_issue_date: string (nullable = true)
+ |-- issue_start_date: date (nullable = true)
+ |-- issue_end_date: date (nullable = true)
+```
+
+## Levels of Metadata
+
+Due to the majority of the documents coming from book collections, the metadata is organized into four levels:
+
+```mermaid
+graph LR;
+
+Text_Reuse_Sources --> Manifestations;
+Manifestations --> Editions;
+Editions --> Works;
+```
+
+For each level, we create a `_id` table with unique integer ids and mapping tables.
+
+> [!WARNING]
+> The BL-Newspapers collections clearly doesn't fit this current schema. Currently, we for each  `article_id` ( `manifestation_id` for newspapers) we create a unique edition and unique work. In the future the metadata schemas would be independent for each collection, and we only keep the mappings between TRS and the necessary metadata attribute.
+
+### Manifestation
+
+We have already described the ids text reuse sources used for BLAST in the [textreuse_ids asset section](#textreuse_ids--creating-int-ids-for-each-unique-document).
+There, we also described the unique manifestations for each collection and which attribute is used as the `manifestation_id`. In the [`manifestation_ids](./ids_and_mappings.py#L17) asset, we collect all the unique manifestations ids from the upstream metadata sources and give them all a unique integer id called `manifestation_id_i`. The schema of the table is as follows:
+
+```bash
+manifestation_ids
+ |-- manifestation_id_i: long (nullable = true)
+ |-- manifestation_id: string (nullable = true)
+```
+
+There is also a corresponding [`textreuse_manifestation_mapping`](./ids_and_mappings.py#L211) asset for mapping `trs_id` to `manifestation_id_i` 
+
+```bash
+textreuse_manifestation_mapping
+ |-- trs_id: long (nullable = true)
+ |-- manifestation_id_i: long (nullable = true)
+```
+
+### Editions
+
+The `edition` level information comes from the ESTC metadata for ECCO and EEBO collections. We use the `ecco_core`, `eebo_core` and `estc_core` upstream assets to get the best possible mapping. Due to the quality of metadata there are some missing links. For example, there are 1143 EEBO_TCP documents that don'y have a ESTC id, and some ECCO documents who don't have an ESTC id. In such cases we use either the `eebo_tcp_id` or `ecco_id` as a placeholder for a unique edition.
+
+We create [`edition_ids`](./ids_and_mappings.py#L62) and [`edition_mapping`](./ids_and_mappings.py#L62) assets for unique integer ids and mappings to manifestations, respectively. In addition, we also create a [`textreuse_edition_mapping`](./ids_and_mappings.py#L164) asset to directly map to `trs_id`. The schemas are as follows:
+
+```bash
+edition_ids
+ |-- edition_id_i: long (nullable = true)
+ |-- edition_id: string (nullable = true)
+```
+
+```bash
+edition_mapping
+ |-- manifestation_id_i: long (nullable = true)
+ |-- edition_id_i: long (nullable = true)
+```
+
+```bash
+textreuse_edition_mapping
+ |-- trs_id: long (nullable = true)
+ |-- edition_id_i: long (nullable = true)
+```
+
+### Works
+
+The `work` level information is based on the `work_id` attribute found in the ESCT metadata. Similar to editions we create [`work_ids`](./ids_and_mappings.py#L125), [`work_mapping`](./ids_and_mappings.py#125) and [`textreuse_work_mapping`](./ids_and_mappings.py#L188) assets with the following schema:
+
+```bash
+work_ids
+ |-- work_id_i: long (nullable = true)
+ |-- work_id: string (nullable = true)
+```
+
+```bash
+work_mapping
+ |-- manifestation_id_i: long (nullable = true)
+ |-- work_id_i: long (nullable = true)
+```
+
+```bash
+textreuse_work_mapping
+ |-- trs_id: long (nullable = true)
+ |-- work_id_i: long (nullable = true)
+```
+
+## `textreuse_sources` Raw Document Texts
+
+The raw text for each document fed into BLAST should be provided via the `RAW_TEXTS_ZIP_FILE` env variable as described in [Upstream Assets](../README.md#upstream-assets). We parse the zip file and materialize the [`textreuse_sources`](./raw_textreuses.py) asset with the following schema:
+
+```bash
+textreuse_sources
+ |-- doc_id: string (nullable = true)
+ |-- text: string (nullable = true)
+ |-- collection: string (nullable = true)
+ |-- text_loc: string (nullable = true)
+```
+
+Among the attributes the most useful one are the `doc_id` which corresponds to `text_name` in the `textreuse_ids` asset and the `text` which the raw document text.

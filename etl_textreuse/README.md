@@ -9,7 +9,7 @@ The Dagster maintains a Directed Acyclic Graph (DAG) of all the assets in the pi
 All the assets are found in the following code locations:
 
 1. [`assets`](./assets/): All assets materialized in S3 buckets
-2. [`database_assets](./database_assets/): All assets that will be materialized in MariaDB
+2. [`database_assets`](./database_assets/): All assets that will be materialized in MariaDB
 
 There are two main S3 buckets that will be used throughout the setup, `raw_bucket` and `processed_bucket`. These can be the same S3 bucket or different ones. Their names need to be specified in the `.env` file like so:
 
@@ -34,15 +34,17 @@ The `RAW_BUCKET` should contain the following upstream metadata sources.
     - `estc_core`, `estc_actors` and `estc_actor_links` are the main metadata sources used currently in the pipeline
 5. NL Newspaper Metadata Assets: The `bl_newspapers_meta.csv` from Ville
    - The CSV is processed into a Parquet. See the [newspaper_core](./assets/upstream_metadata.py#L17) asset for more details.
+   - The file is available from the project IDA at `/text_reuse/metadata/bl_newspapers.csv`
 6. `RAW_TEXTS_ZIP_FILE`: The zip file containing all the raw text for each document. 
     - Default is the `textreuse_sources.zip` file on Allas
     - Created by unzipping all the files from `/scratch/project_2005072/ville/chunks_for_blast` in Puhti and making a single zip with jsonl files called `textreuse_sources.zip`
     - Moved to Allas in the `textreuse-raw-data` bucket
     - The entire file is 34GB and contains 3,071,516 entries.
+    - File now available from the project IDA at `/text_reuse/metadata/textreuse_sources.zip` location
 
 These assets are defined in Dagster as `AssetSpec`s and used to indicate the dependency. However, the file names are hard-coded when they need to be loaded from the `RAW_BUCKET`. The `AssetKey` for these upstream assets is meant to reflect the name of the underlying file. 
 
-## Dowstream Assets 
+## Downstream Assets  
 
 Using the upstream assets we extract, transform and load to create several downstream assets. These assets are categorized by following `group_names` in Dagster and the files that contain the assets related to each group:
 
