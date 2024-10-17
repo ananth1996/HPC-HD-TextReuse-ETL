@@ -24,6 +24,13 @@ We describe the Dagster Assets from different groups.
   - [Actors and Authors](#actors-and-authors)
   - [Publication Dates](#publication-dates)
   - [Manifestation Titles and Source Lengths](#manifestation-titles-and-source-lengths)
+- [`downstream_textreuse` and `denorm` Assets](#downstream_textreuse-and-denorm-assets)
+  - [Materialized Assets](#materialized-assets-3)
+  - [Reception Task Assets](#reception-task-assets)
+  - [Coverages](#coverages)
+    - [`coverages` : Standard Coverage Metric](#coverages--standard-coverage-metric)
+  - [`reception_inception_coverages`: Coverage Metric Based on Reception](#reception_inception_coverages-coverage-metric-based-on-reception)
+  - [Source Piece Statistics](#source-piece-statistics)
 
 # `textreuse` Assets
 
@@ -488,4 +495,161 @@ manifestation_title
 textreuse_source_lenghts
  |-- trs_id: long (nullable = true)
  |-- text_length: integer (nullable = true)
+```
+
+# `downstream_textreuse` and `denorm` Assets
+
+The assets that are materialized to help specifically with downstream tasks.
+Some assets are denormalized to increased query performance, especially on a database with indexes.
+
+
+For a high level overview of the tasks and a simplified schema please see the [Optimizing a Data Science System for Text Reuse Analysis](https://arxiv.org/abs/2401.07290) paper.
+
+## Materialized Assets
+
+- [`coverages`](./coverages.py#L36)
+- [`earliest_manifestation_and_pieces_by_cluster`](./downstream_clusters.py#L122)
+- [`reception_edges`](./reception.py#L40)
+  - [`reception_edges_denorm`](./reception.py#L73)
+- [`reception_inception_coverages`](./coverages.py#L173)
+- [`source_piece_statistics`](./source_piece_statistics.py#L13)
+  - [`source_piece_statistics_denorm`](./source_piece_statistics.py#L70)
+
+
+## Reception Task Assets
+
+For doing reception tasks, it is valuable to have the source and destination of reuses as BLAST does not provide any directionality for the instances it identifies.
+
+In this repo, we will go with the following definitions:
+
+1. **Source Piece**: The piece(s) belong to the manifestation with the earliest published dat2
+2. **Non-Source Piece**: All other pieces in a cluster which are not source pieces 
+
+> [!NOTE]
+> There can be different definitions for source and destination based on user requirements. Take a look at [/etl_textreuse/additional_assets/book_based.py](/etl_textreuse/additional_assets/book_based.py) for assets where the source pieces only from books, even if there is an earlier published newspaper.
+
+We manifest the [`earliest_manifestation_and_pieces_by_cluster`](./downstream_clusters.py#L122) asset which contains the source pieces with the following schema:
+
+```bash
+earliest_manifestation_and_pieces_by_cluster
+ |-- cluster_id: long (nullable = true)
+ |-- manifestation_id_i: long (nullable = true)
+ |-- piece_id: long (nullable = true)
+```
+
+Given these definitions we define a reception edge as an edge from a source piece to a destination piece. We use the source piece asset described above to find the non-source pieces in each cluster and manifest the [`reception_edges`](./reception.py#L40) asset with the following schema:
+
+```bash
+reception_edges
+ |-- src_piece_id: long (nullable = true)
+ |-- dst_piece_id: long (nullable = true)
+```
+For downstream tasks, especially when queries from a database with indexes, it is much better to denormalize the reception edges to allow for quick search. Towards this, we materialize the [`reception_edges_denorm`](./reception.py#L73) with the following schema by denormalizing the piece data:
+
+```bash
+reception_edge_denorm
+ |-- src_trs_id: long (nullable = true)
+ |-- src_trs_start: integer (nullable = true)
+ |-- src_trs_end: integer (nullable = true)
+ |-- dst_trs_id: long (nullable = true)
+ |-- dst_trs_start: integer (nullable = true)
+ |-- dst_trs_end: integer (nullable = true)
+```
+
+## Coverages
+
+Consider two documents $D_1$ and $D_2$. We define the following term:
+
+$$
+reuse(D_1,D_2)= \text{The number of characters in }D_1\text{ reused in }D_2
+$$
+
+Then, given the information of the number of characters in a document, we can compute the $coverage$ defined as :
+
+$$
+coverage(D_1,D_2) = \frac{reuse(D_1,D_2)}{|D_1|}
+$$
+
+Therefore, the coverage metric measures the fraction of D_1 being reused in D_2. When expressed as a percentage, the coverage metric can be utilized as a threshold to determine the significance of reuse between a pair of documents.
+
+
+> [!NOTE]
+> The coverage metric is not a distance metric because it is not symmetric, i.e., $coverage(D_1,D_2) \neq coverage(D_2,D_1)$
+
+The coverage metric provides a higher level view of the text reuses between documents also forming a more dense graph network that can be analyzed further.
+
+Based on the exact definition of $reuse(D_1,D_2)$ several version of the coverage metric can be computed.
+
+
+### `coverages` : Standard Coverage Metric
+
+The standard coverage metric is computed using all raw BLAST hits. This is because we merge all the overlapping textreuse offsets which mirrors the [gaps and island problem](https://bertwagner.com/posts/gaps-and-islands/). As we are merging anyways we can use the denormalized `textreuses` asset instead of joining the `defrag_textreuse` with the `defrag_pieces` assets.
+
+For a pair of documents we merge all the overlapping offsets in each document and compute the total number of characters. See the [`coverages`](./coverages.py#L36) asset for the Spark SQL to perform the aggregation and coverage computation. The asset has the following schema:
+
+```bash
+coverges
+ |-- trs1_id: long (nullable = true)
+ |-- t1_reuses: long (nullable = true)
+ |-- reuse_t1_t2: long (nullable = true)
+ |-- t1_length: integer (nullable = true)
+ |-- coverage_t1_t2: double (nullable = true)
+ |-- trs2_id: long (nullable = true)
+ |-- t2_reuses: long (nullable = true)
+ |-- reuse_t2_t1: long (nullable = true)
+ |-- t2_length: integer (nullable = true)
+ |-- coverage_t2_t1: double (nullable = true)
+```
+
+where the `*_reuses` attributes are the number of contiguous reuse section in the document (i.e., number of islands). This table is denormalized as it contains the `_length` attributes from the `textreuse_source_lengths` asset.
+
+
+## `reception_inception_coverages`: Coverage Metric Based on Reception
+
+When we define teh $reuse(D_1,D_2)$ as the reception of D1 in D2, then instead of taking all reuses between $D_1$ and $D_2$, we restrict the reuses to only those which have been identified as reception. Therefore, we use the `reception_edges_denorm` and perform the gaps and islands merging to materialize the [`reception_inception_coverages`](./coverages.py#L173) asset with the following schema:
+
+```bash
+reception_inception_coverages
+ |-- src_trs_id: long (nullable = true)
+ |-- num_reuses_src: long (nullable = true)
+ |-- reuses_src_in_dst: long (nullable = true)
+ |-- src_length: integer (nullable = true)
+ |-- coverage_src_in_dst: double (nullable = true)
+ |-- dst_trs_id: long (nullable = true)
+ |-- num_reuses_dst: long (nullable = true)
+ |-- reuses_dst_in_src: long (nullable = true)
+ |-- dst_length: integer (nullable = true)
+ |-- coverage_dst_in_src: double (nullable = true)
+```
+
+## Source Piece Statistics
+
+For identifying the top quotes, it is valuable to know the statistics of the source pieces in each cluster. We materialize the [`source_piece_statistics`](./source_piece_statistics.py#L13) asset with the following schema:
+
+```bash
+source_piece_statistics
+ |-- piece_id: long (nullable = true)
+ |-- cluster_id: long (nullable = true)
+ |-- piece_length: integer (nullable = true)
+ |-- num_reception_edges: long (nullable = true)
+ |-- num_different_work_ids: long (nullable = true)
+ |-- num_work_ids_different_authors: long (nullable = true)
+```
+
+Where for each source piece, we compute and store the length of the piece (`piece_length`), the number of outgoing reception edges (`num_reception_edges`), the number of unique destination works (`num_different_work_ids`) and the number of unique destination works of different differents (`num_work_ids_different_authors`).
+
+Again for faster querying, we further denormalize the piece information and materialize the [`source_piece_statistics_denorm`](./source_piece_statistics.py#L70) with the following schema:
+
+```bash
+source_piece_statistics_denorm
+ |-- trs_id: long (nullable = true)
+ |-- piece_id: long (nullable = true)
+ |-- cluster_id: long (nullable = true)
+ |-- piece_length: integer (nullable = true)
+ |-- num_reception_edges: long (nullable = true)
+ |-- num_different_work_ids: long (nullable = true)
+ |-- num_work_ids_different_authors: long (nullable = true)
+ |-- trs_start: integer (nullable = true)
+ |-- trs_end: integer (nullable = true)
+ |-- edition_id_i: long (nullable = true)
 ```
