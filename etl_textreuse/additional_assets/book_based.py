@@ -293,7 +293,7 @@ def reception_inception_between_book_coverages() -> None:
 def db_earliest_book_and_pieces_by_cluster() -> Output[None]:
     spark = get_spark_session(application_name="Load MariaDB")
     table = "earliest_book_and_pieces_by_cluster"
-    database = os.getenv("DB_DATABASE")
+    database = os.getenv("DB_DATABASE_ADDITIONAL")
     schema = """
     CREATE TABLE IF NOT EXISTS `earliest_book_and_pieces_by_cluster`(
         `cluster_id` int(11) unsigned NOT NULL,
@@ -317,7 +317,7 @@ def db_earliest_book_and_pieces_by_cluster() -> Output[None]:
 def db_reception_edges_between_books_denorm() -> Output[None]:
     spark = get_spark_session(application_name="Load MariaDB")
     table = "reception_edges_between_books_denorm"
-    database = os.getenv("DB_DATABASE")
+    database = os.getenv("DB_DATABASE_ADDITIONAL")
     schema = """
     CREATE TABLE IF NOT EXISTS `reception_edges_between_books_denorm`(
         `src_trs_id` int(11) unsigned NOT NULL,
@@ -344,7 +344,7 @@ def db_reception_edges_between_books_denorm() -> Output[None]:
 def db_reception_inception_between_book_coverages() -> Output[None]:
     spark = get_spark_session(application_name="Load MariaDB")
     table = "reception_inception_between_book_coverages"
-    database = os.getenv("DB_DATABASE")
+    database = os.getenv("DB_DATABASE_ADDITIONAL")
     schema = """
     CREATE TABLE IF NOT EXISTS `reception_inception_between_book_coverages` (
         `src_trs_id` int(11) unsigned NOT NULL,
