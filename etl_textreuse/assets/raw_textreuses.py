@@ -79,13 +79,13 @@ zip_file = AssetSpec(key=AssetKey("raw_texreuses_zip"),
 )
 def raw_textreuses() -> None:
     # get the name of the raw BLAST reuses zip file
-    fname =os.getenv("BLAST_ZIP_FILE")
+    fname =os.environ["BLAST_ZIP_FILE"]
     num_partitions = 200
     # load credentials for Pouta s3 storage
     cred = {
-        "aws_access_key_id": os.getenv("AWS_ACCESS_KEY_ID"),
-        "aws_secret_access_key": os.getenv("AWS_SECRET_KEY"),
-        "endpoint_url": os.getenv("AWS_ENDPOINT_URL"),
+        "aws_access_key_id": os.environ["AWS_ACCESS_KEY_ID"],
+        "aws_secret_access_key": os.environ["AWS_SECRET_KEY"],
+        "endpoint_url": os.environ["AWS_ENDPOINT_URL"],
     }
 
     session = boto3.session.Session()
