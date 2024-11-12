@@ -209,6 +209,13 @@ def get_query_dists(statistics: pd.DataFrame, log_bins=True):
     df = pd.DataFrame(
         {"query_dist_id": query_dist_id, "low": low, "high": high})
     df = df.set_index("query_dist_id")
+    total_items = len(sum_n_works)
+    proportions =[]
+    for _,low,high in df.itertuples():
+        mask = (sum_n_works>=low) & (sum_n_works<high)
+        mask_size = sum(mask)
+        proportions.append(mask_size/total_items)
+    df["proportion"] = proportions
     return df
 # %%
 

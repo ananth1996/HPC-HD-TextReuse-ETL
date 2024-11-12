@@ -133,9 +133,18 @@ def get_query_dists(statistics: pd.DataFrame, log_bins=True):
     df = pd.DataFrame(
         {"query_dist_id": query_dist_id, "low": low, "high": high})
     df = df.set_index("query_dist_id")
+    total = len(num_reception_edges)
+    proportions = []
+    for query_dist_id, low, high in df.itertuples():
+        mask = (num_reception_edges >= low) & (num_reception_edges < high)
+        proportion = sum(mask)/total
+        proportions.append(proportion)
+    df["proportion"] = proportions
     return df
 # %%
 
+def get_statistics(database: str, data_dir: Path = project_root/"data"):
+    return pd.read_csv(data_dir/f"{database}-num-reception-edges.csv")
 
 def get_samples(database: str, num_samples=100, seed=42, data_dir: Path = project_root/"data",log_bins:bool=True):
     statistics = pd.read_csv(data_dir/f"{database}-num-reception-edges.csv")

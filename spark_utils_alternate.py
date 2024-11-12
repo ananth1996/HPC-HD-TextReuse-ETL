@@ -18,9 +18,9 @@ BUCKETS_MAP = {
         "denorm_bucket": "textreuse-denormalized-data",
     },
     "hpc-hd-newspapers": {
-        "processed_bucket": "textreuse-new-processed-data",
+        "processed_bucket": "textreuse-dagster-rahti",
         "raw_bucket": "textreuse-raw-data",
-        "denorm_bucket": "textreuse-new-denormalized-data",
+        "denorm_bucket": "textreuse-dagster-rahti",
     }
 }
 
@@ -83,7 +83,7 @@ TABLES_MAP ={
     ("reception_edges_denorm","denorm_bucket"),
     ("source_piece_statistics_denorm","denorm_bucket"),
     ("coverages","processed_bucket"),
-    ("textreuse_sources","processed_bucket"),
+    # ("textreuse_sources","processed_bucket"),
     ]
 } 
 
